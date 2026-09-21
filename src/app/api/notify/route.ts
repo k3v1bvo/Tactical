@@ -1,16 +1,40 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import fs from 'fs';
+import path from 'path';
+
+function getEnv(key: string): string {
+  if (process.env[key]) return process.env[key] as string;
+  try {
+    const envPath = path.join(process.cwd(), '.env.local');
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf-8');
+      const lines = content.split(/\r?\n/);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('#') || !trimmed.includes('=')) continue;
+        const [k, ...v] = trimmed.split('=');
+        if (k.trim() === key) {
+          return v.join('=').trim().replace(/^["']|["']$/g, '');
+        }
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return '';
+}
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { to, subject, title, message, orderId, total, items, freeGift } = body;
 
-    const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-    const port = Number(process.env.SMTP_PORT) || 465;
-    const user = process.env.SMTP_USER || process.env.GMAIL_USER;
-    const pass = process.env.SMTP_PASSWORD || process.env.GMAIL_APP_PASSWORD;
-    const fromName = process.env.SMTP_FROM_NAME || 'Tienda Táctica Cochabamba';
+    const host = getEnv('SMTP_HOST') || 'smtp.gmail.com';
+    const port = Number(getEnv('SMTP_PORT')) || 465;
+    const user = getEnv('SMTP_USER') || getEnv('GMAIL_USER') || 'ayniprotocol@gmail.com';
+    const pass = getEnv('SMTP_PASSWORD') || getEnv('GMAIL_APP_PASSWORD') || 'ujccnzxebbpqzhaw';
+    const fromName = getEnv('SMTP_FROM_NAME') || 'Tienda Táctica Cochabamba';
 
     if (!user || !pass) {
       return NextResponse.json(
@@ -21,15 +45,23 @@ export async function POST(req: Request) {
       );
     }
 
-    const transporter = nodemailer.createTransporter({
-      host,
-      port,
-      secure: port === 465, // true for 465, false for other ports
-      auth: {
-        user,
-        pass, // Google App Password (16 characters without spaces)
-      },
-    });
+    const transporter = host.includes('gmail')
+      ? nodemailer.createTransporter({
+          service: 'gmail',
+          auth: {
+            user: user.trim(),
+            pass: pass.replace(/\s+/g, ''),
+          },
+        })
+      : nodemailer.createTransporter({
+          host,
+          port,
+          secure: port === 465,
+          auth: {
+            user: user.trim(),
+            pass: pass.replace(/\s+/g, ''),
+          },
+        });
 
     // Dark Tactical Gold HTML Email Template
     const html = `
