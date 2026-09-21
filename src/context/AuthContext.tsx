@@ -101,11 +101,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, pass: string, fullName: string): Promise<boolean> => {
-    if (!supabase) {
+    const client = supabase;
+    if (!client) {
       toast.error('Supabase no configurado');
       return false;
     }
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await client.auth.signUp({
       email,
       password: pass,
       options: {
@@ -116,6 +117,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast.error('Error en el registro', { description: error.message });
       return false;
     }
+
+    if (data.user) {
+      setAuthUser({
+        id: data.user.id,
+        name: fullName || data.user.email?.split('@')[0] || 'Operador',
+        email: data.user.email || email,
+      });
+    }
+
+    // Send official welcome email via Google SMTP (ayniprotocol@gmail.com)
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: email,
+        subject: '¡Bienvenido al Centro de Mando Táctico Bolivia!',
+        title: 'CREDENCIALES DE OPERADOR ASIGNADAS',
+        message: `Estimado(a) ${fullName || 'Operador'}, tu cuenta ha sido creada con éxito en la plataforma de Tienda Táctica Cochabamba (Base Heroínas #560). Ya puedes explorar nuestro arsenal, realizar pedidos con despacho local o envíos a toda Bolivia.`,
+      }),
+    }).catch(e => console.warn('Could not send welcome email:', e));
+
     toast.success('¡Operador registrado con éxito!');
     setIsAuthModalOpen(false);
     return true;
