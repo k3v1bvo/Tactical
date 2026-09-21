@@ -65,7 +65,7 @@ export function HoloGearShowcase({ products }: HoloGearShowcaseProps) {
       category: 'Calzado Táctico',
       spec: 'Suela Vibram · Membrana Gore-Tex',
       price: 'Bs. 179.99',
-      image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80',
+      image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&auto=format&fit=crop&q=80',
       productRef: products.find(p => p.id === 'prod-02') || products[1] || products[0],
       hotspots: [
         { id: 'h6', x: 45, y: 38, title: 'Cuero Hidrofugado 2.2mm', tag: 'GORE-TEX MEMBRANE', desc: 'Impermeabilidad total y respirabilidad en marcha forzada.', stat: '100% WATERPROOF' },

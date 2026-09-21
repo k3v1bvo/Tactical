@@ -306,6 +306,8 @@ export function Navbar() {
             setAlertsOpen(false);
           }}
         />
+      )}
+
       {/* Tactical Authentication Modal */}
       <AuthModal />
     </nav>

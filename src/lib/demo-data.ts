@@ -72,7 +72,7 @@ export const demoProducts: Product[] = [
   },
   {
     id: 'prod-02', name: 'Botas Tácticas Desert Storm', description: 'Botas de combate con suela Vibram, membrana impermeable Gore-Tex, puntera reforzada. Altura: 8 pulgadas. Color: Arena. Perfectas para terrenos desérticos y operaciones prolongadas.',
-    price: 179.99, stock: 22, low_stock_threshold: 5, category_id: 'cat-02', images: ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-03-05T10:00:00Z', updated_at: '2026-09-10T10:00:00Z', deleted_at: null, category: demoCategories[1]
+    price: 179.99, stock: 22, low_stock_threshold: 5, category_id: 'cat-02', images: ['https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-03-05T10:00:00Z', updated_at: '2026-09-10T10:00:00Z', deleted_at: null, category: demoCategories[1]
   },
   {
     id: 'prod-03', name: 'Mira Holográfica EOTech XPS3', description: 'Mira holográfica de punto rojo con retícula 68 MOA. Compatible con visión nocturna NV. Sumergible hasta 10 metros. Batería CR123A incluida. Construcción de aluminio aeronáutico.',
@@ -100,7 +100,7 @@ export const demoProducts: Product[] = [
   },
   {
     id: 'prod-09', name: 'Linterna Táctica SureFire G2X Pro', description: 'Linterna LED de 600 lúmenes con cuerpo de polímero Nitrolon, 2 modos (alto 600lm / bajo 15lm), bisel de acero inoxidable con corona táctica. 2x CR123A.',
-    price: 79.99, stock: 4, low_stock_threshold: 5, category_id: 'cat-03', images: ['https://images.unsplash.com/photo-1517420704952-d9f39e95b43e?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-05-01T10:00:00Z', updated_at: '2026-09-18T10:00:00Z', deleted_at: null, category: demoCategories[2]
+    price: 79.99, stock: 4, low_stock_threshold: 5, category_id: 'cat-03', images: ['https://images.unsplash.com/photo-1516762689617-e1cffcef479d?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-05-01T10:00:00Z', updated_at: '2026-09-18T10:00:00Z', deleted_at: null, category: demoCategories[2]
   },
   {
     id: 'prod-10', name: 'Cinturón Táctico Rigger D-Ring', description: 'Cinturón de servicio con hebilla de liberación rápida V-Ring certificado para rappel, refuerzo interno rígido Scuba Webbing y sistema MOLLE. Ancho: 1.75". Color: Coyote Brown.',
@@ -108,7 +108,7 @@ export const demoProducts: Product[] = [
   },
   {
     id: 'prod-11', name: 'Chaleco Táctico Ligero MOLLE', description: 'Chaleco táctico ligero con sistema MOLLE completo frontal y posterior, ventilación mesh interior, bolsillos para 6 cargadores y panel de administración con velcro.',
-    price: 69.99, stock: 40, low_stock_threshold: 8, category_id: 'cat-01', images: ['https://images.unsplash.com/photo-1508962914676-134849a727f0?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-05-10T10:00:00Z', updated_at: '2026-08-15T10:00:00Z', deleted_at: null, category: demoCategories[0]
+    price: 69.99, stock: 40, low_stock_threshold: 8, category_id: 'cat-01', images: ['https://images.unsplash.com/photo-1584483766114-2cea6facdf57?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-05-10T10:00:00Z', updated_at: '2026-08-15T10:00:00Z', deleted_at: null, category: demoCategories[0]
   },
   {
     id: 'prod-12', name: 'Kit de Supervivencia Táctico 15-en-1', description: 'Kit compacto con pedernal, brújula de orientación, sierra de cable, manta térmica aluminizada, silbato de emergencia, linterna mini y 10 herramientas más en estuche MOLLE.',
