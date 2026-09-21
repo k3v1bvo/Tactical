@@ -23,6 +23,7 @@ import {
   defaultStoreSettings,
 } from '@/lib/demo-data';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 export interface StoreSettings {
   storeName: string;
@@ -210,8 +211,67 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           setStoreSettings(parsedSettings);
         }
       }
+      // Live Supabase sync
+      if (supabase) {
+        // 1. Categories
+        supabase.from('categories').select('*').order('position', { ascending: true }).then(({ data }) => {
+          if (data && data.length > 0) setCategories(data);
+        });
+
+        // 2. Products
+        supabase.from('products').select('*').eq('is_active', true).then(({ data }) => {
+          if (data && data.length > 0) {
+            const mappedProducts: Product[] = data.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              slug: p.slug,
+              description: p.description || '',
+              price: parseFloat(p.price) || 0,
+              category_id: p.category_id,
+              images: Array.isArray(p.images) && p.images.length > 0 ? p.images : ['https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=80'],
+              stock: p.stock ?? 0,
+              low_stock_threshold: p.low_stock_threshold ?? 5,
+              sku: p.sku || '',
+              is_active: p.is_active ?? true,
+              vendor_id: p.vendor_id || null,
+              created_at: p.created_at || new Date().toISOString(),
+              updated_at: p.updated_at || new Date().toISOString(),
+              deleted_at: null,
+            }));
+            setProducts(mappedProducts);
+          }
+        });
+
+        // 3. Shipping Zones
+        supabase.from('shipping_zones').select('*').eq('is_active', true).then(({ data }) => {
+          if (data && data.length > 0) {
+            setShippingZones(data.map((z: any) => ({
+              ...z,
+              shipping_cost: parseFloat(z.shipping_cost) || 0,
+              driver_commission: parseFloat(z.driver_commission) || 0,
+              store_profit: parseFloat(z.store_profit) || 0,
+            })));
+          }
+        });
+
+        // 4. Store Settings
+        supabase.from('store_settings').select('*').eq('id', 'main').single().then(({ data }) => {
+          if (data) {
+            setStoreSettings({
+              storeName: data.store_name || defaultStoreSettings.storeName,
+              currency: data.currency || defaultStoreSettings.currency,
+              currencySymbol: data.currency_symbol || defaultStoreSettings.currencySymbol,
+              pickupAddress: data.pickup_address || defaultStoreSettings.pickupAddress,
+              pickupSchedule: data.pickup_schedule || defaultStoreSettings.pickupSchedule,
+              pickupInstructions: data.pickup_instructions || defaultStoreSettings.pickupInstructions,
+              freeGiftName: data.free_gift_name || defaultStoreSettings.freeGiftName,
+              freeGiftValue: parseFloat(data.free_gift_min_amount) || defaultStoreSettings.freeGiftValue,
+            });
+          }
+        });
+      }
     } catch (e) {
-      console.warn('Error reading from localStorage:', e);
+      console.warn('Error reading from storage or Supabase:', e);
     } finally {
       setIsInitialized(true);
     }
@@ -392,6 +452,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setAlerts(prev => [newAlert, ...prev]);
     }
 
+    if (supabase) {
+      supabase.from('products').insert({
+        id: newProduct.id,
+        name: newProduct.name,
+        slug: newProduct.slug,
+        description: newProduct.description,
+        price: newProduct.price,
+        category_id: newProduct.category_id,
+        images: newProduct.images,
+        stock: newProduct.stock,
+        low_stock_threshold: newProduct.low_stock_threshold,
+        is_active: true,
+      }).then(({ error }) => {
+        if (error) console.error('Error inserting product in Supabase:', error);
+      });
+    }
+
     toast.success(`Producto "${prod.name}" añadido al catálogo`);
     return newProduct;
   };
@@ -450,11 +527,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return p;
       })
     );
+
+    if (supabase) {
+      supabase.from('products').update({
+        ...(data.name && { name: data.name }),
+        ...(data.description && { description: data.description }),
+        ...(data.price !== undefined && { price: data.price }),
+        ...(data.stock !== undefined && { stock: data.stock }),
+        ...(data.low_stock_threshold !== undefined && { low_stock_threshold: data.low_stock_threshold }),
+        ...(data.category_id && { category_id: data.category_id }),
+        ...(data.image && { images: [data.image] }),
+        ...(data.is_active !== undefined && { is_active: data.is_active }),
+      }).eq('id', id).then(({ error }) => {
+        if (error) console.error('Error updating product in Supabase:', error);
+      });
+    }
+
     toast.success('Producto actualizado');
   };
 
   const deleteProduct = (id: string) => {
     setProducts(prev => prev.filter(p => p.id !== id));
+    if (supabase) {
+      supabase.from('products').delete().eq('id', id).then(({ error }) => {
+        if (error) console.error('Error deleting product in Supabase:', error);
+      });
+    }
     toast.error('Producto eliminado del catálogo');
   };
 
@@ -618,6 +716,57 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
 
     setOrders(prev => [newOrder, ...prev]);
+
+    // Live Supabase sync for order
+    if (supabase) {
+      supabase
+        .from('orders')
+        .insert({
+          id: newOrder.id,
+          status: newOrder.status,
+          subtotal: Number(input.subtotal),
+          total: Number(newOrder.total),
+          delivery_type: newOrder.delivery_type,
+          pickup_time: newOrder.pickup_time,
+          pickup_location: newOrder.pickup_location,
+          destination_department: newOrder.destination_department,
+          shipping_zone_id: newOrder.shipping_zone_id,
+          shipping_cost: Number(newOrder.shipping_cost),
+          payment_mode: newOrder.payment_mode,
+          payment_method: newOrder.payment_method,
+          paid_amount: Number(newOrder.paid_amount),
+          pending_amount: Number(newOrder.pending_amount),
+          free_gift: newOrder.free_gift,
+          driver_commission: Number(newOrder.driver_commission),
+          customer_name: newOrder.customer_name,
+          customer_phone: newOrder.customer_phone,
+          customer_email: newOrder.customer_email,
+          customer_address: newOrder.customer_address,
+          delivery_notes: newOrder.delivery_notes,
+        })
+        .then(({ error }) => {
+          if (error) console.error('Error inserting order in Supabase:', error);
+        });
+
+      if (newOrder.items && newOrder.items.length > 0) {
+        supabase
+          .from('order_items')
+          .insert(
+            newOrder.items.map(item => ({
+              id: item.id,
+              order_id: newOrder.id,
+              product_id: item.product_id,
+              product_name: products.find(p => p.id === item.product_id)?.name || 'Producto Táctico',
+              quantity: item.quantity,
+              unit_price: Number(item.unit_price),
+              total_price: Number(item.subtotal),
+            }))
+          )
+          .then(({ error }) => {
+            if (error) console.error('Error inserting items in Supabase:', error);
+          });
+      }
+    }
 
     // Subtract stock
     input.items.forEach(item => {

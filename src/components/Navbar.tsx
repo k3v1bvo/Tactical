@@ -3,15 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ShoppingCart, Menu, X, Shield, Bell, ChevronDown, Compass, Package, ShieldAlert } from 'lucide-react';
+import { ShoppingCart, Menu, X, Shield, Bell, ChevronDown, Compass, Package, ShieldAlert, User, LogIn } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useStore } from '@/context/StoreContext';
+import { AuthModal } from '@/components/AuthModal';
 import type { AppRole } from '@/lib/types';
 
 export function Navbar() {
   const { totalItems } = useCart();
-  const { role, setRole, userName } = useAuth();
+  const { role, setRole, userName, openAuthModal, isLoggedIn } = useAuth();
   const { categories, alerts } = useStore();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -132,6 +133,16 @@ export function Navbar() {
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-2">
+
+            {/* Iniciar Sesión / Mi Cuenta Button */}
+            <button
+              onClick={openAuthModal}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#C8A961]/35 hover:border-[#C8A961] bg-[#C8A961]/10 text-[#C8A961] hover:bg-[#C8A961]/20 text-xs font-mono font-bold transition-all shadow-sm"
+              title="Iniciar sesión / Mi Cuenta"
+            >
+              {isLoggedIn ? <User size={13} /> : <LogIn size={13} />}
+              <span className="hidden sm:inline">{isLoggedIn ? 'MI CUENTA' : 'INICIAR SESIÓN'}</span>
+            </button>
 
             {/* Role Switcher */}
             <div className="relative">
@@ -295,7 +306,8 @@ export function Navbar() {
             setAlertsOpen(false);
           }}
         />
-      )}
+      {/* Tactical Authentication Modal */}
+      <AuthModal />
     </nav>
   );
 }

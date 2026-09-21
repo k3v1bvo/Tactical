@@ -857,6 +857,54 @@ body {
   }
 }
 
+/* ============ TACTICAL VISION MODES ============ */
+.vision-nvg {
+  --color-accent: #22c55e;
+  --color-accent-hover: #4ade80;
+  --accent: #22c55e;
+  --accent-hover: #4ade80;
+}
+
+.vision-nvg .text-gradient-gold {
+  background: linear-gradient(135deg, #22c55e 0%, #86efac 50%, #15803d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.vision-nvg .text-glow-gold {
+  text-shadow: 0 0 20px rgba(34, 197, 94, 0.5), 0 0 50px rgba(34, 197, 94, 0.2);
+}
+
+.vision-flir {
+  --color-accent: #06b6d4;
+  --color-accent-hover: #f97316;
+  --accent: #06b6d4;
+  --accent-hover: #f97316;
+}
+
+.vision-flir .text-gradient-gold {
+  background: linear-gradient(135deg, #06b6d4 0%, #f97316 60%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.vision-flir .text-glow-gold {
+  text-shadow: 0 0 20px rgba(6, 182, 212, 0.5), 0 0 50px rgba(249, 115, 22, 0.3);
+}
+
+/* ============ AUDIO EQUALIZER BARS ============ */
+@keyframes eqBar1 { 0%, 100% { height: 4px; } 50% { height: 14px; } }
+@keyframes eqBar2 { 0%, 100% { height: 12px; } 50% { height: 5px; } }
+@keyframes eqBar3 { 0%, 100% { height: 7px; } 50% { height: 16px; } }
+@keyframes eqBar4 { 0%, 100% { height: 15px; } 50% { height: 6px; } }
+
+.animate-eq-1 { animation: eqBar1 0.6s ease-in-out infinite; }
+.animate-eq-2 { animation: eqBar2 0.8s ease-in-out infinite; }
+.animate-eq-3 { animation: eqBar3 0.5s ease-in-out infinite; }
+.animate-eq-4 { animation: eqBar4 0.7s ease-in-out infinite; }
+
 /* ============ TOAST ============ */
 [data-sonner-toaster] {
   --normal-bg: #141418;
@@ -869,3 +917,4 @@ body {
   --error-border: rgba(239, 68, 68, 0.25);
   --error-text: #f87171;
 }
+

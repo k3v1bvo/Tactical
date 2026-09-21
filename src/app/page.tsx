@@ -7,6 +7,12 @@ import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/Navbar';
 import { useCart } from '@/context/CartContext';
 import { useStore } from '@/context/StoreContext';
+import { TacticalRadarCanvas } from '@/components/TacticalRadarCanvas';
+import { HoloGearShowcase } from '@/components/HoloGearShowcase';
+import { TacticalDeliverySimulator } from '@/components/TacticalDeliverySimulator';
+import { TacticalPaymentSimulator } from '@/components/TacticalPaymentSimulator';
+import { TiltProductCard } from '@/components/TiltProductCard';
+import { tacticalAudio } from '@/lib/tactical-audio';
 import {
   Shield,
   Crosshair,
@@ -32,26 +38,29 @@ import {
   MapPin,
   Clock,
   Gift,
+  Volume2,
+  VolumeX,
+  Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Product } from '@/lib/types';
 
-// ============ SCROLL ANIMATION HOOK ============
+// ============ SCROLL REVEAL HOOK ============
 function useScrollReveal() {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach(entry => {
+        entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add('in-view');
           }
         });
       },
-      { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
     );
 
     const elements = document.querySelectorAll('.animate-on-scroll');
-    elements.forEach(el => observer.observe(el));
+    elements.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
   }, []);
@@ -70,29 +79,16 @@ function useHeroAnimation(containerRef: React.RefObject<HTMLElement | null>) {
       if (!containerRef.current) return;
 
       gsapCtx = gsap.context(() => {
-        // Check reduced motion preference
         const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         if (prefersReduced) return;
 
         const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
-        tl.fromTo('[data-hero-badge]', { opacity: 0, y: -16, scale: 0.92 }, { opacity: 1, y: 0, scale: 1, duration: 0.6 })
-          .fromTo('[data-hero-h1]', { opacity: 0, y: 32, skewY: 1 }, { opacity: 1, y: 0, skewY: 0, duration: 0.8 }, '-=0.2')
+        tl.fromTo('[data-hero-badge]', { opacity: 0, y: -16, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.6 })
+          .fromTo('[data-hero-h1]', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.8 }, '-=0.3')
           .fromTo('[data-hero-sub]', { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6 }, '-=0.4')
-          .fromTo('[data-hero-cta]', { opacity: 0, y: 16, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.1 }, '-=0.3')
-          .fromTo('[data-hero-stats]', { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.6, stagger: 0.08 }, '-=0.2');
-
-        // Parallax orb
-        gsap.to('[data-hero-orb]', {
-          yPercent: -25,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: containerRef.current,
-            start: 'top top',
-            end: 'bottom top',
-            scrub: 1.5,
-          },
-        });
+          .fromTo('[data-hero-actions]', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5 }, '-=0.3')
+          .fromTo('[data-hero-stats]', { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.08 }, '-=0.2');
 
         // Progress bars animation triggered on scroll
         ScrollTrigger.batch('[data-progress-bar]', {
@@ -104,7 +100,6 @@ function useHeroAnimation(containerRef: React.RefObject<HTMLElement | null>) {
           },
           once: true,
         });
-
       }, containerRef);
     };
 
@@ -113,13 +108,18 @@ function useHeroAnimation(containerRef: React.RefObject<HTMLElement | null>) {
   }, [containerRef]);
 }
 
-// ============ MAIN COMPONENT ============
+// ============ MAIN HOME PAGE ============
 export default function HomePage() {
   const router = useRouter();
   const { addItem } = useCart();
   const { products, categories } = useStore();
   const heroRef = useRef<HTMLElement>(null);
 
+  // Vision Mode: 'stealth' | 'nvg' | 'flir'
+  const [visionMode, setVisionMode] = useState<'stealth' | 'nvg' | 'flir'>('stealth');
+  const [audioActive, setAudioActive] = useState(false);
+
+  // Filters & Search
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'stock'>('featured');
@@ -128,12 +128,12 @@ export default function HomePage() {
 
   // Active products
   const activeProducts = useMemo(() => {
-    return products.filter(p => p.is_active && !p.deleted_at);
+    return products.filter((p) => p.is_active && !p.deleted_at);
   }, [products]);
 
   // Featured flagship product
   const flagshipProduct = useMemo(() => {
-    return activeProducts.find(p => p.stock > 0) || activeProducts[0];
+    return activeProducts.find((p) => p.stock > 0) || activeProducts[0];
   }, [activeProducts]);
 
   // Filtered products for catalog
@@ -143,7 +143,7 @@ export default function HomePage() {
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
-        p =>
+        (p) =>
           p.name.toLowerCase().includes(q) ||
           p.description?.toLowerCase().includes(q) ||
           p.category?.name.toLowerCase().includes(q)
@@ -151,7 +151,7 @@ export default function HomePage() {
     }
 
     if (selectedCategory) {
-      list = list.filter(p => p.category_id === selectedCategory);
+      list = list.filter((p) => p.category_id === selectedCategory);
     }
 
     switch (sortBy) {
@@ -169,19 +169,25 @@ export default function HomePage() {
     return list;
   }, [activeProducts, search, selectedCategory, sortBy]);
 
-  // Init animations
+  // Init hooks
   useScrollReveal();
   useHeroAnimation(heroRef);
 
-  const handleQuickAdd = (e: React.MouseEvent, product: Product) => {
-    e.stopPropagation();
-    if (product.stock === 0) {
-      toast.error('Producto agotado');
-      return;
-    }
-    addItem(product, 1);
-    toast.success(`"${product.name}" añadido al carrito`, {
-      description: `Bs. ${product.price.toFixed(2)}`,
+  // Handle Vision Mode Switch
+  const handleSwitchVision = (mode: 'stealth' | 'nvg' | 'flir') => {
+    tacticalAudio.playVisionSwitch();
+    setVisionMode(mode);
+    toast(`MODO VISOR ACTIVADO: ${mode.toUpperCase()}`, {
+      description: mode === 'nvg' ? 'Visión Nocturna Fósforo Verde STANAG' : mode === 'flir' ? 'Infrarrojo Térmico FLIR' : 'Firma Sigilosa Mate Oro',
+    });
+  };
+
+  // Handle Audio Toggle
+  const handleToggleAudio = () => {
+    const isEnabled = tacticalAudio.toggle();
+    setAudioActive(isEnabled);
+    toast(isEnabled ? 'AUDIO TÁCTICO HUD: ACTIVADO' : 'AUDIO HUD: SILENCIADO', {
+      description: isEnabled ? 'Sintetizador Web Audio operativo' : 'Efectos acústicos desactivados',
     });
   };
 
@@ -191,6 +197,7 @@ export default function HomePage() {
       toast.error('Ingresa un correo electrónico válido');
       return;
     }
+    tacticalAudio.playAddCart();
     setNewsletterSubscribed(true);
     toast.success('¡Registro táctico completado!', {
       description: 'Recibirás notificaciones de drops prioritarios.',
@@ -200,144 +207,212 @@ export default function HomePage() {
   const categoryImages: Record<string, string> = {
     'cat-01': 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=80',
     'cat-02': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80',
-    'cat-03': 'https://images.unsplash.com/photo-1517420704952-d9f39e95b43e?w=800&auto=format&fit=crop&q=80',
+    'cat-03': 'https://images.unsplash.com/photo-1595590424283-b8f17842773f?w=800&auto=format&fit=crop&q=80',
     'cat-04': 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&auto=format&fit=crop&q=80',
     'cat-05': 'https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?w=800&auto=format&fit=crop&q=80',
+    'cat-06': 'https://images.unsplash.com/photo-1593784991095-a205069470b6?w=800&auto=format&fit=crop&q=80',
   };
 
   return (
-    <div className="min-h-screen bg-[#050507] text-[#F5F5F7] selection:bg-[#C8A961] selection:text-[#050507] overflow-x-hidden">
+    <div
+      className={`min-h-screen bg-[#050507] text-[#F5F5F7] selection:bg-[#C8A961] selection:text-[#050507] overflow-x-hidden ${
+        visionMode === 'nvg' ? 'vision-nvg' : visionMode === 'flir' ? 'vision-flir' : ''
+      }`}
+    >
       <Navbar />
 
       {/* ================================================================= */}
-      {/* HERO — Cinematographic Impact                                      */}
+      {/* HERO SECTION 3.0 — Cinematic Tactical Command & 3D Arsenal          */}
       {/* ================================================================= */}
       <section
         ref={heroRef}
-        className="relative min-h-screen flex items-center justify-center pt-20 pb-16 overflow-hidden tactical-grid-bg hero-gradient"
+        className="relative min-h-[92vh] flex items-center justify-center pt-28 pb-16 overflow-hidden hero-gradient"
       >
-        {/* Ambient glow orbs */}
+        {/* Interactive 60fps Radar Canvas Background */}
+        <TacticalRadarCanvas visionMode={visionMode} />
+
+        {/* Ambient Glow Orbs */}
         <div
-          data-hero-orb
-          className="glow-orb glow-orb-gold absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[500px] opacity-60"
-          style={{ animation: 'orbFloat 20s ease-in-out infinite' }}
+          className="glow-orb glow-orb-gold absolute top-1/4 left-1/2 -translate-x-1/2 w-[750px] h-[550px] opacity-40 pointer-events-none"
+          style={{ animation: 'orbFloat 22s ease-in-out infinite' }}
         />
-        <div className="glow-orb absolute bottom-0 right-10 w-[400px] h-[400px] opacity-30"
-          style={{ background: 'radial-gradient(circle, rgba(229,72,77,0.12) 0%, transparent 70%)', animation: 'orbFloat 25s ease-in-out infinite reverse' }} />
 
-        {/* Scan line effect */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute w-full h-[1px] bg-gradient-to-r from-transparent via-[#C8A961]/20 to-transparent"
-            style={{ animation: 'scanLine 8s linear infinite', top: 0 }} />
-        </div>
+        {/* CRT Scanline Overlay if in NVG mode */}
+        {visionMode === 'nvg' && (
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(34,197,94,0.06)_0%,transparent_75%)] pointer-events-none z-10 scanlines" />
+        )}
 
-        {/* HUD Coordinates */}
-        <div className="absolute top-24 left-6 hidden lg:flex flex-col gap-1.5 text-[10px] font-mono text-[#35353E]">
-          <span className="flex items-center gap-1.5 text-[#C8A961] opacity-80">
-            <Radio size={10} className="animate-pulse" /> SAT-LINK ONLINE · COCHABAMBA
-          </span>
-          <span>LAT: 17°23&apos;S · LON: 66°09&apos;W · 2,558m</span>
-          <span>STANAG 4569 CERTIFIED · BOLIVIA</span>
-        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 w-full">
+          {/* Top HUD Controls: Vision Modes & Audio Equalizer */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-8 pb-3 border-b border-[#22222A]/60">
+            {/* Left: Location & Sat-Link */}
+            <div className="flex items-center gap-3 text-[10px] font-mono text-[#5E5E68]">
+              <span className="flex items-center gap-1.5 text-[#C8A961] font-bold">
+                <Radio size={12} className="animate-pulse" /> SAT-LINK ONLINE
+              </span>
+              <span className="hidden sm:inline">·</span>
+              <span className="hidden sm:inline">COCHABAMBA 17°23&apos;S 66°09&apos;W</span>
+              <span className="hidden md:inline">·</span>
+              <span className="hidden md:inline text-[#30A46C] font-bold">18 OPERADORES EN LÍNEA</span>
+            </div>
 
-        <div className="absolute top-24 right-6 hidden lg:flex flex-col items-end gap-1.5 text-[10px] font-mono text-[#35353E]">
-          <span className="text-[#30A46C] flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#30A46C] animate-ping" />
-            OPERACIONAL 100%
-          </span>
-          <span>ARSENAL: {activeProducts.length} ÍTEMS ACTIVOS</span>
-          <span>ENCRIPTACIÓN AES-256</span>
-        </div>
-
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center relative z-10">
-          {/* Badge */}
-          <div
-            data-hero-badge
-            style={{ opacity: 0 }}
-            className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full glass-surface border border-[#C8A961]/20 text-xs mb-10 shadow-lg"
-          >
-            <span className="w-2 h-2 rounded-full bg-[#C8A961] animate-pulse" />
-            <span className="font-mono text-[11px] text-[#A1A1AA] tracking-widest uppercase">
-              Equipamiento Profesional · Cochabamba, Bolivia
-            </span>
-            <span className="text-[#35353E]">·</span>
-            <span className="text-[#C8A961] font-mono text-[11px] font-bold">2026</span>
-          </div>
-
-          {/* Main Headline */}
-          <h1
-            data-hero-h1
-            style={{ opacity: 0 }}
-            className="text-5xl sm:text-7xl md:text-[88px] font-extrabold tracking-tight text-[#F5F5F7] uppercase font-sans leading-[1.04] mb-6"
-          >
-            EQUIPO PARA{' '}
-            <br />
-            <span className="text-glow-gold text-gradient-gold">
-              NO DETENERSE
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p
-            data-hero-sub
-            style={{ opacity: 0 }}
-            className="text-base sm:text-lg md:text-xl text-[#7A7A85] max-w-2xl mx-auto mb-12 leading-relaxed font-normal"
-          >
-            Ingeniería militar, protección balística y ergonomía de precisión.
-            Diseñado para operadores tácticos en misiones críticas.
-          </p>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-            <a
-              data-hero-cta
-              style={{ opacity: 0 }}
-              href="#catalogo"
-              className="btn-tactical text-sm px-10 py-4 w-full sm:w-auto"
-            >
-              EXPLORAR CATÁLOGO <ArrowRight size={16} />
-            </a>
-            <a
-              data-hero-cta
-              style={{ opacity: 0 }}
-              href="#bloque-valor"
-              className="btn-outline-gold text-sm px-10 py-4 w-full sm:w-auto"
-            >
-              ESPECIFICACIONES TÉCNICAS
-            </a>
-          </div>
-
-          {/* Metrics Strip */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl mx-auto pt-8 border-t border-[#22222A]">
-            {[
-              { label: 'MIL-SPEC', sub: 'Certificado', color: '#F5F5F7' },
-              { label: '< 24h', sub: 'Despacho Express', color: '#C8A961' },
-              { label: 'IP68', sub: 'Sumergible & Polvo', color: '#F5F5F7' },
-              { label: 'QR PAY', sub: 'Pago Cifrado', color: '#30A46C' },
-            ].map((m, i) => (
-              <div
-                key={i}
-                data-hero-stats
-                style={{ opacity: 0 }}
-                className="p-3 text-center group cursor-default"
+            {/* Right: Vision Switcher & Audio Equalizer */}
+            <div className="flex items-center gap-2">
+              {/* Audio HUD Toggle with Equalizer Bars */}
+              <button
+                onClick={handleToggleAudio}
+                className={`px-3 py-1.5 rounded-lg border text-[10px] font-mono flex items-center gap-2 transition-all ${
+                  audioActive
+                    ? 'bg-[#30A46C]/15 border-[#30A46C] text-[#30A46C] shadow-[0_0_12px_rgba(48,164,108,0.3)]'
+                    : 'bg-[#111116] border-[#22222A] text-[#7A7A85] hover:text-white'
+                }`}
+                title="Activar / Desactivar Sonidos Tácticos HUD"
               >
-                <div
-                  className="text-2xl font-bold font-mono transition-all duration-300 group-hover:scale-105"
-                  style={{ color: m.color }}
+                {audioActive ? <Volume2 size={13} /> : <VolumeX size={13} />}
+                <span className="font-bold">{audioActive ? 'AUDIO ACTIVO' : 'AUDIO HUD'}</span>
+                {audioActive && (
+                  <div className="flex items-end gap-0.5 h-3">
+                    <span className="w-0.5 bg-[#30A46C] rounded-full animate-eq-1" />
+                    <span className="w-0.5 bg-[#30A46C] rounded-full animate-eq-2" />
+                    <span className="w-0.5 bg-[#30A46C] rounded-full animate-eq-3" />
+                    <span className="w-0.5 bg-[#30A46C] rounded-full animate-eq-4" />
+                  </div>
+                )}
+              </button>
+
+              {/* Vision Mode Selector */}
+              <div className="flex items-center p-0.5 rounded-lg bg-[#111116] border border-[#22222A] text-[10px] font-mono">
+                <button
+                  onClick={() => handleSwitchVision('stealth')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${
+                    visionMode === 'stealth'
+                      ? 'bg-[#C8A961] text-black font-extrabold shadow-sm'
+                      : 'text-[#7A7A85] hover:text-white'
+                  }`}
                 >
-                  {m.label}
-                </div>
-                <div className="text-[11px] text-[#5E5E68] uppercase tracking-wider mt-0.5 font-mono">
-                  {m.sub}
-                </div>
+                  ORO SIGILO
+                </button>
+                <button
+                  onClick={() => handleSwitchVision('nvg')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${
+                    visionMode === 'nvg'
+                      ? 'bg-[#22c55e] text-black font-extrabold shadow-[0_0_10px_#22c55e]'
+                      : 'text-[#7A7A85] hover:text-[#22c55e]'
+                  }`}
+                >
+                  NVG VERDE
+                </button>
+                <button
+                  onClick={() => handleSwitchVision('flir')}
+                  className={`px-2.5 py-1 rounded-md transition-all ${
+                    visionMode === 'flir'
+                      ? 'bg-[#06b6d4] text-black font-extrabold shadow-[0_0_10px_#06b6d4]'
+                      : 'text-[#7A7A85] hover:text-[#06b6d4]'
+                  }`}
+                >
+                  TÉRMICO
+                </button>
               </div>
-            ))}
+            </div>
+          </div>
+
+          {/* 2-Column Hero Stage: Tactical Command & 3D Arsenal */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+            {/* Left Column: Mission Briefing & CTAs */}
+            <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+              {/* Badge */}
+              <div
+                data-hero-badge
+                className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full glass-surface border border-[#C8A961]/30 text-xs shadow-xl"
+              >
+                <span className="w-2 h-2 rounded-full bg-[#C8A961] animate-pulse" />
+                <span className="font-mono text-[11px] text-[#A1A1AA] tracking-widest uppercase">
+                  Base Central Cochabamba · Av. Heroínas #560
+                </span>
+                <span className="text-[#35353E]">·</span>
+                <span className="text-[#C8A961] font-mono text-[11px] font-bold">EDICIÓN 2026</span>
+              </div>
+
+              {/* Headline */}
+              <h1
+                data-hero-h1
+                className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-[#F5F5F7] uppercase font-sans leading-[1.05]"
+              >
+                EQUIPO PARA{' '}
+                <br />
+                <span className="text-glow-gold text-gradient-gold">
+                  NO DETENERSE
+                </span>
+              </h1>
+
+              {/* Subtitle */}
+              <p
+                data-hero-sub
+                className="text-sm sm:text-base md:text-lg text-[#7A7A85] max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal"
+              >
+                Ingeniería militar, protección balística NIJ-IV y ergonomía de precisión.
+                Despacho inmediato en Cochabamba y envíos diarios por flota a toda Bolivia.
+              </p>
+
+              {/* CTAs */}
+              <div
+                data-hero-actions
+                className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2"
+              >
+                <a
+                  href="#catalogo"
+                  className="btn-tactical text-sm px-8 py-4 w-full sm:w-auto shadow-2xl flex items-center justify-center gap-2"
+                >
+                  <span>EXPLORAR ARSENAL</span> <ArrowRight size={16} />
+                </a>
+                <a
+                  href="#simulador-envios"
+                  className="btn-outline-gold text-sm px-8 py-4 w-full sm:w-auto flex items-center justify-center gap-2"
+                >
+                  <Truck size={16} />
+                  <span>SIMULADOR DE ENVÍOS</span>
+                </a>
+              </div>
+
+              {/* Metrics Micro-Strip */}
+              <div
+                data-hero-stats
+                className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-[#22222A]"
+              >
+                {[
+                  { label: 'MIL-SPEC', sub: 'Certificado NIJ', color: '#F5F5F7' },
+                  { label: '< 2 HORAS', sub: 'Cercado Express', color: '#C8A961' },
+                  { label: 'TERMINAL', sub: 'Flota Toda Bolivia', color: '#F5F5F7' },
+                  { label: 'QR SIMPLE', sub: 'Liquidación 0 Clics', color: '#30A46C' },
+                ].map((m, i) => (
+                  <div
+                    key={i}
+                    className="p-2.5 rounded-xl bg-[#0e0e13]/60 border border-[#22222A] text-center group cursor-default hover:border-[#C8A961]/30 transition-colors"
+                  >
+                    <div
+                      className="text-lg font-bold font-mono transition-transform duration-300 group-hover:scale-105"
+                      style={{ color: m.color }}
+                    >
+                      {m.label}
+                    </div>
+                    <div className="text-[10px] text-[#5E5E68] uppercase tracking-wider mt-0.5 font-mono">
+                      {m.sub}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right Column: 3D HOLOGRAPHIC GEAR SHOWCASE (Interactive Hotspots) */}
+            <div className="lg:col-span-5 flex items-center justify-center">
+              <HoloGearShowcase products={activeProducts} />
+            </div>
           </div>
         </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 opacity-50 hover:opacity-80 transition-opacity">
-          <span className="text-[10px] font-mono tracking-widest text-[#5E5E68] uppercase">SCROLL</span>
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
+          <span className="text-[9px] font-mono tracking-widest text-[#5E5E68] uppercase">DESPLAZAR</span>
           <div className="w-4 h-7 rounded-full border border-[#35353E] flex items-start justify-center p-1">
             <div className="w-1 h-2 bg-[#C8A961] rounded-full animate-bounce" />
           </div>
@@ -348,39 +423,34 @@ export default function HomePage() {
       {/* TRUST TICKER                                                        */}
       {/* ================================================================= */}
       <section className="py-3.5 border-y border-[#22222A] bg-[#0A0A0D] overflow-hidden relative">
-        <div className="absolute inset-y-0 left-0 w-20 bg-gradient-to-r from-[#0A0A0D] to-transparent z-10 pointer-events-none" />
-        <div className="absolute inset-y-0 right-0 w-20 bg-gradient-to-l from-[#0A0A0D] to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#0A0A0D] to-transparent z-10 pointer-events-none" />
+        <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[#0A0A0D] to-transparent z-10 pointer-events-none" />
         <div className="animate-marquee flex items-center gap-10 text-xs font-mono tracking-widest text-[#5E5E68] uppercase">
-          {[1, 2].map(i => (
+          {[1, 2].map((i) => (
             <React.Fragment key={i}>
-              <span className="flex items-center gap-2.5 hover:text-[#C8A961] transition-colors cursor-default whitespace-nowrap">
+              <span className="flex items-center gap-2 hover:text-[#C8A961] transition-colors cursor-default whitespace-nowrap">
                 <Store size={13} className="text-[#C8A961] flex-shrink-0" />
-                BASE CENTRAL COCHABAMBA · RETIRO GRATUITO
+                BASE CENTRAL COCHABAMBA · RETIRO GRATUITO (HEROÍNAS #560)
               </span>
               <span className="text-[#22222A] flex-shrink-0">✦</span>
-              <span className="flex items-center gap-2.5 hover:text-[#C8A961] transition-colors cursor-default whitespace-nowrap">
+              <span className="flex items-center gap-2 hover:text-[#C8A961] transition-colors cursor-default whitespace-nowrap">
                 <Truck size={13} className="text-[#C8A961] flex-shrink-0" />
-                DELIVERY EXPRESS · CERCADO · SACABA · QUILLACOLLO
+                DELIVERY MOTORIZADO EXPRESS · CERCADO · SACABA · QUILLACOLLO
               </span>
               <span className="text-[#22222A] flex-shrink-0">✦</span>
-              <span className="flex items-center gap-2.5 hover:text-[#C8A961] transition-colors cursor-default whitespace-nowrap">
+              <span className="flex items-center gap-2 hover:text-[#C8A961] transition-colors cursor-default whitespace-nowrap">
                 <Building size={13} className="text-[#C8A961] flex-shrink-0" />
-                FLOTA TERMINAL A TODA BOLIVIA
+                DESPACHO FLOTA DIARIO A TODA BOLIVIA
               </span>
               <span className="text-[#22222A] flex-shrink-0">✦</span>
-              <span className="flex items-center gap-2.5 hover:text-[#C8A961] transition-colors cursor-default whitespace-nowrap">
-                <Crosshair size={13} className="text-[#C8A961] flex-shrink-0" />
-                PAGOS QR · 100% O 50/50 O CONTRAENTREGA
-              </span>
-              <span className="text-[#22222A] flex-shrink-0">✦</span>
-              <span className="flex items-center gap-2.5 hover:text-[#30A46C] transition-colors cursor-default whitespace-nowrap">
+              <span className="flex items-center gap-2 hover:text-[#30A46C] transition-colors cursor-default whitespace-nowrap">
                 <Gift size={13} className="text-[#30A46C] flex-shrink-0" />
-                SOUVENIR SORPRESA AL ABONAR 100%
+                SOUVENIR TÁCTICO GRATIS AL ABONAR 100% QR
               </span>
               <span className="text-[#22222A] flex-shrink-0">✦</span>
-              <span className="flex items-center gap-2.5 hover:text-[#C8A961] transition-colors cursor-default whitespace-nowrap">
+              <span className="flex items-center gap-2 hover:text-[#C8A961] transition-colors cursor-default whitespace-nowrap">
                 <Shield size={13} className="text-[#C8A961] flex-shrink-0" />
-                GARANTÍA TÁCTICA MIL-SPEC
+                GARANTÍA DE OPERACIÓN MIL-SPEC STANAG
               </span>
               <span className="text-[#22222A] flex-shrink-0">✦</span>
             </React.Fragment>
@@ -389,98 +459,48 @@ export default function HomePage() {
       </section>
 
       {/* ================================================================= */}
-      {/* DELIVERY OPTIONS — Nuevas Formas de Entrega                        */}
+      {/* INTERACTIVE DELIVERY SIMULATOR — Cochabamba & Nacional             */}
       {/* ================================================================= */}
-      <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="text-center mb-14 animate-on-scroll">
-          <div className="text-xs font-mono text-[#C8A961] tracking-widest uppercase mb-2">LOGÍSTICA TÁCTICA</div>
+      <section id="simulador-envios" className="py-24 max-w-7xl mx-auto px-4 sm:px-6 scroll-mt-20">
+        <div className="text-center mb-12 animate-on-scroll">
+          <div className="text-xs font-mono text-[#C8A961] tracking-widest uppercase mb-2">
+            DESPLIEGUE TÁCTICO & COBERTURA
+          </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight uppercase">
-            TRES FORMAS DE ENTREGA
+            LOGÍSTICA INMEDIATA EN BOLIVIA
           </h2>
-          <p className="text-sm text-[#7A7A85] mt-3 max-w-lg mx-auto">
-            Retiro en almacén, delivery local o envío interprovincial — tú eliges.
+          <p className="text-xs sm:text-sm text-[#7A7A85] mt-2 max-w-xl mx-auto">
+            Calcula el tiempo y tarifa exacta para retiro en tienda, motorizado urbano o despacho por flota.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger-children">
-          {/* Retiro en almacén */}
-          <div className="glass-card antigravity-glow p-7 flex flex-col gap-4 group">
-            <div className="w-12 h-12 rounded-xl bg-[#C8A961]/10 border border-[#C8A961]/20 flex items-center justify-center text-[#C8A961] group-hover:scale-110 transition-transform duration-300">
-              <Store size={24} />
-            </div>
-            <div>
-              <span className="text-[10px] font-mono text-[#C8A961] uppercase tracking-widest block mb-1">OPCIÓN 01</span>
-              <h3 className="text-lg font-bold text-white mb-2">Retiro en Almacén</h3>
-              <p className="text-xs text-[#7A7A85] leading-relaxed">
-                Av. Heroínas — Base Central Cochabamba. Lunes a Sábado en horarios establecidos. <strong className="text-[#A1A1AA]">100% gratis.</strong>
-              </p>
-            </div>
-            <div className="flex items-center gap-2 mt-auto pt-4 border-t border-[#22222A]">
-              <Clock size={13} className="text-[#5E5E68]" />
-              <span className="text-[11px] text-[#5E5E68] font-mono">COSTO: Bs. 0 · Horario coordinado</span>
-            </div>
-          </div>
-
-          {/* Delivery urbano */}
-          <div className="glass-card antigravity-glow p-7 flex flex-col gap-4 group border-[#C8A961]/15">
-            <div className="w-12 h-12 rounded-xl bg-[#C8A961]/15 border border-[#C8A961]/30 flex items-center justify-center text-[#C8A961] group-hover:scale-110 transition-transform duration-300">
-              <Truck size={24} />
-            </div>
-            <div>
-              <span className="text-[10px] font-mono text-[#C8A961] uppercase tracking-widest block mb-1">OPCIÓN 02</span>
-              <h3 className="text-lg font-bold text-white mb-2">Delivery Express</h3>
-              <p className="text-xs text-[#7A7A85] leading-relaxed">
-                Repartidor motorizado a tu puerta en Cercado, Sacaba, Quillacollo y zonas aledañas. <strong className="text-[#A1A1AA]">Costo adicional según zona.</strong>
-              </p>
-            </div>
-            <div className="flex items-center gap-2 mt-auto pt-4 border-t border-[#22222A]">
-              <MapPin size={13} className="text-[#C8A961]" />
-              <span className="text-[11px] text-[#C8A961] font-mono">ZONA CBBA METROPOLITANA</span>
-            </div>
-          </div>
-
-          {/* Envío nacional */}
-          <div className="glass-card antigravity-glow p-7 flex flex-col gap-4 group">
-            <div className="w-12 h-12 rounded-xl bg-[#3b82f6]/10 border border-[#3b82f6]/20 flex items-center justify-center text-[#3b82f6] group-hover:scale-110 transition-transform duration-300">
-              <Building size={24} />
-            </div>
-            <div>
-              <span className="text-[10px] font-mono text-[#3b82f6] uppercase tracking-widest block mb-1">OPCIÓN 03</span>
-              <h3 className="text-lg font-bold text-white mb-2">Envío Nacional</h3>
-              <p className="text-xs text-[#7A7A85] leading-relaxed">
-                Despacho diario por flotas de buses desde Terminal Cochabamba. La Paz, Santa Cruz, Oruro y todo Bolivia. <strong className="text-[#A1A1AA]">Contraentrega disponible.</strong>
-              </p>
-            </div>
-            <div className="flex items-center gap-2 mt-auto pt-4 border-t border-[#22222A]">
-              <Building size={13} className="text-[#5E5E68]" />
-              <span className="text-[11px] text-[#5E5E68] font-mono">FLOTA TERMINAL CBBA · TODA BOLIVIA</span>
-            </div>
-          </div>
+        <div className="animate-on-scroll">
+          <TacticalDeliverySimulator />
         </div>
       </section>
 
       {/* ================================================================= */}
-      {/* CATEGORÍAS — 3D Hover Cards                                        */}
+      {/* CATEGORÍAS TÁCTICAS — 3D Visual Grid                              */}
       {/* ================================================================= */}
       <section className="py-20 border-t border-[#22222A] bg-[#070709]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4 animate-on-scroll">
             <div>
               <div className="text-xs font-mono text-[#C8A961] tracking-widest uppercase mb-2">
-                SISTEMAS OPERACIONALES
+                ARSENAL POR DIVISIONES
               </div>
               <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight uppercase">
-                CATEGORÍAS DE COMBATE
+                CATEGORÍAS DE OPERACIÓN
               </h2>
             </div>
             <p className="text-xs sm:text-sm text-[#7A7A85] max-w-md">
-              Blindaje personal, transporte pesado, óptica de precisión e iluminación táctica.
+              Protección balística, visión nocturna, calzado de combate y herramientas EDC de supervivencia.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {categories.map((cat, index) => {
-              const count = products.filter(p => p.category_id === cat.id).length;
+              const count = products.filter((p) => p.category_id === cat.id).length;
               const bgImg =
                 categoryImages[cat.id] ||
                 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=80';
@@ -489,6 +509,7 @@ export default function HomePage() {
                 <div
                   key={cat.id}
                   onClick={() => {
+                    tacticalAudio.playLockOn();
                     setSelectedCategory(cat.id);
                     const el = document.getElementById('catalogo');
                     el?.scrollIntoView({ behavior: 'smooth' });
@@ -496,40 +517,37 @@ export default function HomePage() {
                   className="animate-on-scroll group relative h-80 rounded-2xl overflow-hidden cursor-pointer iso-card"
                   style={{ transitionDelay: `${index * 60}ms` }}
                 >
-                  {/* Background Image */}
                   <Image
                     src={bgImg}
                     alt={cat.name}
                     fill
-                    className="object-cover group-hover:scale-108 transition-transform duration-700 brightness-60"
+                    className="object-cover group-hover:scale-110 transition-transform duration-700 brightness-60"
                     sizes="(max-width: 768px) 100vw, 33vw"
                   />
 
-                  {/* Glass overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#050507] via-[#050507]/50 to-transparent" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#C8A961]/0 via-transparent to-[#050507]/80 group-hover:from-[#C8A961]/8 transition-all duration-500" />
+                  {/* Gradient overlays */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#050507] via-[#050507]/60 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#C8A961]/0 via-transparent to-[#050507]/80 group-hover:from-[#C8A961]/10 transition-all duration-500" />
+                  <div className="absolute inset-0 rounded-2xl border border-white/10 group-hover:border-[#C8A961]/40 transition-colors duration-300" />
 
-                  {/* Glassy border frame */}
-                  <div className="absolute inset-0 rounded-2xl border border-white/6 group-hover:border-[#C8A961]/30 transition-colors duration-400" />
-
-                  {/* Corner index */}
+                  {/* Index tag */}
                   <div className="absolute top-4 right-4 text-[#5E5E68] group-hover:text-[#C8A961] font-mono text-[11px] transition-colors duration-300 tracking-widest">
-                    {String(index + 1).padStart(2, '0')} ──
+                    DIV-{String(index + 1).padStart(2, '0')} ──
                   </div>
 
                   {/* Content */}
                   <div className="absolute bottom-0 inset-x-0 p-6 flex flex-col justify-end">
-                    <span className="text-[11px] font-mono text-[#C8A961] uppercase tracking-wider font-semibold mb-1.5">
-                      {count} PRODUCTOS
+                    <span className="text-[11px] font-mono text-[#C8A961] uppercase tracking-wider font-semibold mb-1">
+                      {count} ÍTEMS DISPONIBLES
                     </span>
-                    <h3 className="text-xl font-bold text-white uppercase tracking-tight mb-2 group-hover:text-[#C8A961] transition-colors duration-300">
+                    <h3 className="text-xl font-extrabold text-white uppercase tracking-tight mb-1.5 group-hover:text-[#C8A961] transition-colors">
                       {cat.name}
                     </h3>
                     <p className="text-xs text-[#7A7A85] line-clamp-2 mb-4 leading-relaxed">
-                      {cat.description || 'Equipamiento de máxima durabilidad y diseño técnico.'}
+                      {cat.description || 'Equipamiento de máxima resistencia y ergonomía para operaciones exigentes.'}
                     </p>
-                    <div className="flex items-center gap-1 text-xs font-bold text-white/60 group-hover:text-[#C8A961] uppercase tracking-wider transition-all duration-300 group-hover:gap-2">
-                      EXPLORAR LÍNEA <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-white/70 group-hover:text-[#C8A961] uppercase tracking-wider transition-all duration-300">
+                      EXPLORAR LÍNEA <ChevronRight size={14} className="group-hover:translate-x-1.5 transition-transform" />
                     </div>
                   </div>
                 </div>
@@ -540,7 +558,7 @@ export default function HomePage() {
       </section>
 
       {/* ================================================================= */}
-      {/* CATÁLOGO — Product Grid                                            */}
+      {/* CATÁLOGO DE PRODUCTOS — 3D Tilt Cards                              */}
       {/* ================================================================= */}
       <section id="catalogo" className="py-24 border-t border-[#22222A] bg-[#050507] scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -548,51 +566,58 @@ export default function HomePage() {
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4 animate-on-scroll">
             <div>
               <div className="text-xs font-mono text-[#C8A961] tracking-widest uppercase mb-2">
-                INVENTARIO EN VIVO
+                INVENTARIO OPERATIVO EN VIVO
               </div>
               <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight uppercase">
                 CATÁLOGO TÁCTICO
               </h2>
             </div>
-            <div className="text-xs font-mono text-[#5E5E68] bg-[#0D0D10] border border-[#22222A] px-3 py-1.5 rounded-lg">
-              {filteredProducts.length} / {activeProducts.length} DISPONIBLES
+            <div className="text-xs font-mono text-[#5E5E68] bg-[#0D0D10] border border-[#22222A] px-3.5 py-1.5 rounded-lg flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#30A46C] animate-pulse" />
+              <span>{filteredProducts.length} ÍTEMS LISTOS PARA DESPACHO</span>
             </div>
           </div>
 
-          {/* Filters Toolbar */}
-          <div className="glass-card-static p-4 rounded-xl border border-[#22222A] mb-8 flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between animate-on-scroll">
-            {/* Search */}
+          {/* Filters Bar */}
+          <div className="glass-card-static p-4 rounded-2xl border border-[#22222A] mb-8 flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between animate-on-scroll">
+            {/* Search input */}
             <div className="relative flex-1 min-w-[240px]">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5E5E68]" />
               <input
                 type="text"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar por nombre, código o descripción..."
-                className="w-full bg-[#0D0D10] border border-[#22222A] text-xs text-[#F5F5F7] rounded-lg pl-10 pr-4 py-2.5 focus:border-[#C8A961]/50 focus:outline-none transition-all placeholder-[#5E5E68]"
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por arma, código, calibre o descripción..."
+                className="w-full bg-[#0D0D10] border border-[#22222A] text-xs text-[#F5F5F7] rounded-xl pl-10 pr-4 py-2.5 focus:border-[#C8A961]/50 focus:outline-none font-mono placeholder-[#5E5E68]"
               />
             </div>
 
-            {/* Category Pills */}
+            {/* Category Filter Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
               <button
-                onClick={() => setSelectedCategory(null)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap transition-all duration-200 ${
+                onClick={() => {
+                  tacticalAudio.playBlip();
+                  setSelectedCategory(null);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap transition-all ${
                   selectedCategory === null
-                    ? 'bg-[#C8A961] text-[#050507] font-bold shadow-[0_0_15px_rgba(200,169,97,0.3)]'
-                    : 'bg-[#0D0D10] text-[#A1A1AA] hover:text-white border border-[#22222A] hover:border-[#35353E]'
+                    ? 'bg-[#C8A961] text-black font-extrabold shadow-[0_0_15px_rgba(200,169,97,0.35)]'
+                    : 'bg-[#0D0D10] text-[#A1A1AA] hover:text-white border border-[#22222A]'
                 }`}
               >
                 TODOS ({activeProducts.length})
               </button>
-              {categories.map(cat => (
+              {categories.map((cat) => (
                 <button
                   key={cat.id}
-                  onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap transition-all duration-200 ${
+                  onClick={() => {
+                    tacticalAudio.playBlip();
+                    setSelectedCategory(selectedCategory === cat.id ? null : cat.id);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-mono whitespace-nowrap transition-all ${
                     selectedCategory === cat.id
-                      ? 'bg-[#C8A961] text-[#050507] font-bold shadow-[0_0_15px_rgba(200,169,97,0.3)]'
-                      : 'bg-[#0D0D10] text-[#A1A1AA] hover:text-white border border-[#22222A] hover:border-[#35353E]'
+                      ? 'bg-[#C8A961] text-black font-extrabold shadow-[0_0_15px_rgba(200,169,97,0.35)]'
+                      : 'bg-[#0D0D10] text-[#A1A1AA] hover:text-white border border-[#22222A]'
                   }`}
                 >
                   {cat.name.toUpperCase()}
@@ -603,123 +628,38 @@ export default function HomePage() {
             {/* Sort */}
             <select
               value={sortBy}
-              onChange={e => setSortBy(e.target.value as any)}
-              className="bg-[#0D0D10] border border-[#22222A] text-xs text-[#A1A1AA] rounded-lg px-3 py-2.5 focus:border-[#C8A961]/50 focus:outline-none cursor-pointer"
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="bg-[#0D0D10] border border-[#22222A] text-xs text-[#A1A1AA] rounded-xl px-3 py-2.5 focus:border-[#C8A961]/50 focus:outline-none cursor-pointer font-mono"
             >
               <option value="featured">Destacados</option>
               <option value="price-asc">Precio: Menor a Mayor</option>
               <option value="price-desc">Precio: Mayor a Menor</option>
-              <option value="stock">Mayor Stock</option>
+              <option value="stock">Mayor Disponibilidad</option>
             </select>
           </div>
 
-          {/* Product Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {filteredProducts.map((product, idx) => {
-              const isLow = product.stock <= product.low_stock_threshold && product.stock > 0;
-              const isOut = product.stock === 0;
-
-              return (
-                <div
-                  key={product.id}
-                  onClick={() => router.push(`/producto/${product.id}`)}
-                  className="group bg-[#0D0D10] border border-[#22222A] hover:border-[#C8A961]/25 rounded-xl overflow-hidden flex flex-col justify-between floating-card cursor-pointer animate-on-scroll"
-                  style={{ transitionDelay: `${(idx % 8) * 40}ms` }}
-                >
-                  {/* Image */}
-                  <div className="relative aspect-square w-full bg-[#14141A] overflow-hidden">
-                    <Image
-                      src={product.images[0] || 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=80'}
-                      alt={product.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                    />
-                    {/* Gradient overlay on hover */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#050507]/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400" />
-
-                    {/* Quick view button */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
-                      <span className="bg-[#050507]/90 text-[#C8A961] text-[10px] font-mono font-bold px-3 py-1.5 rounded-lg border border-[#C8A961]/30 backdrop-blur-sm">
-                        VER DETALLE
-                      </span>
-                    </div>
-
-                    {/* Badges */}
-                    <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
-                      {isOut ? (
-                        <span className="bg-[#E5484D] text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded">
-                          AGOTADO
-                        </span>
-                      ) : isLow ? (
-                        <span className="bg-[#F5A623] text-[#050507] text-[10px] font-mono font-bold px-2 py-0.5 rounded">
-                          ÚLTIMAS {product.stock} UDS
-                        </span>
-                      ) : (
-                        <span className="bg-[#0D0D10]/85 backdrop-blur-sm text-[#C8A961] border border-[#C8A961]/25 text-[10px] font-mono font-bold px-2 py-0.5 rounded">
-                          MIL-SPEC
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="absolute top-2.5 right-2.5">
-                      <span className="bg-[#050507]/80 text-[#7A7A85] text-[10px] font-mono px-2 py-0.5 rounded backdrop-blur-sm">
-                        {product.category?.name || 'Táctico'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Body */}
-                  <div className="p-4 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="text-[10px] font-mono text-[#5E5E68] mb-1">
-                        REF-{product.id.slice(-6).toUpperCase()}
-                      </div>
-                      <h3 className="text-sm font-bold text-white group-hover:text-[#C8A961] transition-colors duration-200 line-clamp-1 mb-1.5">
-                        {product.name}
-                      </h3>
-                      <p className="text-xs text-[#7A7A85] line-clamp-2 leading-relaxed mb-4">
-                        {product.description || 'Equipamiento de alto rendimiento balístico y durabilidad probada.'}
-                      </p>
-                    </div>
-
-                    <div className="pt-3 border-t border-[#22222A] flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] text-[#5E5E68] block font-mono">PRECIO</span>
-                        <span className="text-lg font-bold text-white font-mono">
-                          Bs. {product.price.toFixed(2)}
-                        </span>
-                      </div>
-
-                      <button
-                        onClick={e => handleQuickAdd(e, product)}
-                        disabled={isOut}
-                        className={`relative p-2.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 overflow-hidden ${
-                          isOut
-                            ? 'bg-[#22222A] text-[#5E5E68] cursor-not-allowed'
-                            : 'bg-[#C8A961] text-[#050507] hover:bg-[#DEC07A] active:scale-95 shadow-[0_4px_12px_rgba(200,169,97,0.3)] hover:shadow-[0_6px_20px_rgba(200,169,97,0.45)]'
-                        }`}
-                        title="Añadir al carrito"
-                      >
-                        <ShoppingCart size={15} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          {/* 3D Tilt Product Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => (
+              <div key={product.id} className="animate-on-scroll">
+                <TiltProductCard product={product} />
+              </div>
+            ))}
           </div>
 
           {filteredProducts.length === 0 && (
             <div className="text-center py-24 border border-dashed border-[#22222A] rounded-2xl">
-              <Target size={40} className="text-[#5E5E68] mx-auto mb-4" />
-              <h3 className="text-base font-bold text-white mb-1">Sin resultados tácticos</h3>
-              <p className="text-xs text-[#7A7A85]">Ajusta tu búsqueda o categoría.</p>
+              <Target size={40} className="text-[#5E5E68] mx-auto mb-4 animate-pulse" />
+              <h3 className="text-base font-bold text-white mb-1">Sin coincidencias tácticas</h3>
+              <p className="text-xs text-[#7A7A85]">Intenta con otra palabra clave o restablece filtros.</p>
               <button
-                onClick={() => { setSearch(''); setSelectedCategory(null); }}
+                onClick={() => {
+                  setSearch('');
+                  setSelectedCategory(null);
+                }}
                 className="btn-tactical text-xs mt-5"
               >
-                Restablecer Filtros
+                Restablecer Búsqueda
               </button>
             </div>
           )}
@@ -727,32 +667,36 @@ export default function HomePage() {
       </section>
 
       {/* ================================================================= */}
-      {/* VALOR TÁCTICO — Split Screen                                        */}
+      {/* VALOR TÁCTICO & MATRIZ DE RESISTENCIA BALÍSTICA                   */}
       {/* ================================================================= */}
       <section id="bloque-valor" className="py-24 border-t border-[#22222A] bg-[#070709]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            {/* Features List */}
+            {/* Features */}
             <div className="animate-on-scroll">
               <div className="text-xs font-mono text-[#C8A961] tracking-widest uppercase mb-2">
-                INGENIERÍA SIN CONCESIONES
+                ESPECIFICACIONES SIN CONCESIONES
               </div>
               <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight uppercase mb-6 leading-tight">
-                ESTÁNDARES SUPERIORES PARA CONDICIONES EXTREMAS
+                ESTÁNDARES MILITARES PARA OPERACIONES CRÍTICAS
               </h2>
               <p className="text-sm text-[#7A7A85] mb-10 leading-relaxed">
-                Cada costura, hebilla y panel balístico sometido a pruebas de resistencia en laboratorio y escenarios reales.
+                Cada costura, hebilla y placa de blindaje es sometida a rigurosos ensayos de tensión, tracción balística y sellado hidrofóbico antes de ingresar a nuestro arsenal.
               </p>
 
               <div className="space-y-6">
                 {[
-                  { icon: Shield, title: 'Blindaje & Kevlar NIJ-IIIA', desc: 'Detención de fragmentos hasta .44 Magnum con mínima deformación.' },
-                  { icon: Layers, title: 'Molle Modular Corte Láser', desc: 'Ranurado en Cordura 1000D. 30% menos peso sin perder tracción.' },
-                  { icon: Flame, title: 'Resistencia Térmica IP68', desc: 'Operación entre -40°C y +70°C con sellado hidrofóbico total.' },
-                  { icon: Cpu, title: 'Aluminio Aeroespacial 7075-T6', desc: 'Hebillas de liberación rápida que soportan +900 kg de tensión.' },
+                  { icon: Shield, title: 'Blindaje & Cerámica NIJ-IV', desc: 'Detención de proyectiles perforantes hasta 7.62x51mm OTAN con mínima deformación posterior.' },
+                  { icon: Layers, title: 'Cordura 1000D Láser-Cut', desc: 'Tejido balístico con ranurado de corte láser. 30% más ligero y 100% impermeable.' },
+                  { icon: Flame, title: 'Resistencia Térmica IP68', desc: 'Operación continua entre -40°C y +70°C con sellado hermético contra polvo fino y agua.' },
+                  { icon: Cpu, title: 'Hebillas Cobra 7075-T6', desc: 'Aluminio aeroespacial fresado en CNC con resistencia comprobada superior a 900 kg.' },
                 ].map((f, i) => (
-                  <div key={i} className="flex items-start gap-4 group animate-on-scroll" style={{ transitionDelay: `${i * 80}ms` }}>
-                    <div className="w-11 h-11 rounded-xl bg-[#0D0D10] border border-[#22222A] flex items-center justify-center text-[#C8A961] flex-shrink-0 mt-0.5 group-hover:border-[#C8A961]/35 group-hover:bg-[#C8A961]/08 transition-all duration-300">
+                  <div
+                    key={i}
+                    className="flex items-start gap-4 group animate-on-scroll"
+                    style={{ transitionDelay: `${i * 80}ms` }}
+                  >
+                    <div className="w-11 h-11 rounded-xl bg-[#0D0D10] border border-[#22222A] flex items-center justify-center text-[#C8A961] flex-shrink-0 mt-0.5 group-hover:border-[#C8A961]/40 group-hover:bg-[#C8A961]/10 transition-all duration-300">
                       <f.icon size={20} />
                     </div>
                     <div>
@@ -764,35 +708,32 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Telemetry HUD */}
+            {/* Radar Telemetry HUD */}
             <div className="relative glass-card p-8 overflow-hidden tactical-dots-bg animate-on-scroll">
               <div className="absolute top-4 right-4 flex items-center gap-1.5 text-[10px] font-mono text-[#5E5E68]">
-                <Lock size={11} className="text-[#30A46C]" /> TELEMETRÍA CIFRADA
+                <Lock size={11} className="text-[#30A46C]" /> TELEMETRÍA ENCRIPTADA
               </div>
 
-              <div className="mb-8">
-                <span className="text-[10px] font-mono text-[#C8A961] uppercase">DIAGNÓSTICO TÉCNICO</span>
-                <h3 className="text-xl font-bold text-white mt-1.5">MATRIZ DE RESISTENCIA BALÍSTICA</h3>
+              <div className="mb-6">
+                <span className="text-[10px] font-mono text-[#C8A961] uppercase font-bold">DIAGNÓSTICO EN VIVO</span>
+                <h3 className="text-xl font-bold text-white mt-1">MATRIZ DE RESISTENCIA BALÍSTICA</h3>
               </div>
 
-              {/* Radar */}
+              {/* Radar Graphic */}
               <div className="relative w-56 h-56 mx-auto my-6 flex items-center justify-center">
-                {/* Concentric rings */}
                 {[56, 44, 32].map((size, i) => (
                   <div
                     key={i}
-                    className={`absolute border rounded-full flex items-center justify-center ${
-                      i === 0 ? 'border-[#35353E]' : i === 1 ? 'border-[#22222A]' : 'border-[#C8A961]/20'
+                    className={`absolute border rounded-full ${
+                      i === 0 ? 'border-[#35353E]' : i === 1 ? 'border-[#22222A]' : 'border-[#C8A961]/25'
                     }`}
                     style={{ width: `${size * 4}px`, height: `${size * 4}px` }}
                   />
                 ))}
-                {/* Crosshairs */}
                 <div className="absolute inset-x-0 top-1/2 h-[1px] bg-[#22222A]" />
                 <div className="absolute inset-y-0 left-1/2 w-[1px] bg-[#22222A]" />
-                {/* Rotating radar line */}
                 <div
-                  className="absolute w-[1px] h-1/2 bg-gradient-to-t from-[#C8A961]/60 to-transparent origin-bottom animate-radar"
+                  className="absolute w-[1px] h-1/2 bg-gradient-to-t from-[#C8A961]/70 to-transparent origin-bottom animate-radar"
                   style={{ bottom: '50%', left: '50%', transformOrigin: 'bottom center' }}
                 />
                 <Crosshair size={32} className="text-[#C8A961] relative z-10 animate-pulse" />
@@ -801,14 +742,14 @@ export default function HomePage() {
               {/* Progress Bars */}
               <div className="space-y-4 font-mono text-xs mt-6">
                 {[
-                  { label: 'DURABILIDAD A LA ABRASIÓN', value: 99.4 },
-                  { label: 'DISPERSIÓN DE IMPACTO', value: 96.8 },
-                  { label: 'REDUCCIÓN FIRMA INFRARROJA', value: 94.2 },
+                  { label: 'DURABILIDAD A LA ABRASIÓN (CORDURA 1000D)', value: 99.4 },
+                  { label: 'DISPERSIÓN DE IMPACTO CINÉTICO', value: 96.8 },
+                  { label: 'REDUCCIÓN FIRMA INFRARROJA (NIR)', value: 94.2 },
                 ].map((bar, i) => (
                   <div key={i}>
                     <div className="flex justify-between text-[#A1A1AA] mb-1.5">
                       <span>{bar.label}</span>
-                      <span className="text-[#C8A961]">{bar.value}%</span>
+                      <span className="text-[#C8A961] font-bold">{bar.value}%</span>
                     </div>
                     <div className="h-1.5 w-full bg-[#0D0D10] rounded-full overflow-hidden border border-[#22222A]">
                       <div
@@ -827,75 +768,25 @@ export default function HomePage() {
       </section>
 
       {/* ================================================================= */}
-      {/* PAYMENT METHODS — Métodos de Pago                                  */}
+      {/* INTERACTIVE PAYMENT SIMULATOR — QR 100% / 50-50 / Contraentrega  */}
       {/* ================================================================= */}
-      <section className="py-20 border-t border-[#22222A] bg-[#050507]">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
-          <div className="animate-on-scroll mb-12">
-            <div className="text-xs font-mono text-[#C8A961] tracking-widest uppercase mb-2">OPCIONES DE PAGO</div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight uppercase">
-              PAGA COMO PREFIERAS
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 stagger-children">
-            {[
-              {
-                icon: Zap,
-                title: 'Pago Total QR',
-                desc: 'Paga el 100% por QR bancario y recibe un SOUVENIR SORPRESA de regalo.',
-                color: '#C8A961',
-                badge: '🎁 REGALO INCLUIDO',
-                badgeColor: '#30A46C',
-              },
-              {
-                icon: Lock,
-                title: 'Pago 50/50',
-                desc: '50% por QR al confirmar el pedido y el resto contra entrega.',
-                color: '#3b82f6',
-                badge: 'FLEXIBILIDAD',
-                badgeColor: '#3b82f6',
-              },
-              {
-                icon: Package,
-                title: 'Contraentrega',
-                desc: 'Paga al recibir tu pedido. Disponible para zonas seleccionadas.',
-                color: '#A1A1AA',
-                badge: 'SEGURO',
-                badgeColor: '#5E5E68',
-              },
-            ].map((method, i) => (
-              <div key={i} className="glass-card p-6 text-left group">
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110"
-                  style={{ background: `${method.color}15`, border: `1px solid ${method.color}25`, color: method.color }}
-                >
-                  <method.icon size={22} />
-                </div>
-                <span
-                  className="text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded mb-3 inline-block"
-                  style={{ background: `${method.badgeColor}15`, color: method.badgeColor, border: `1px solid ${method.badgeColor}25` }}
-                >
-                  {method.badge}
-                </span>
-                <h3 className="text-base font-bold text-white mb-2">{method.title}</h3>
-                <p className="text-xs text-[#7A7A85] leading-relaxed">{method.desc}</p>
-              </div>
-            ))}
-          </div>
+      <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="animate-on-scroll">
+          <TacticalPaymentSimulator />
         </div>
       </section>
 
       {/* ================================================================= */}
-      {/* TESTIMONIOS                                                         */}
+      {/* TESTIMONIOS DE OPERADORES                                           */}
       {/* ================================================================= */}
       <section className="py-24 border-t border-[#22222A] bg-[#070709]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-2xl mx-auto mb-16 animate-on-scroll">
             <div className="text-xs font-mono text-[#C8A961] tracking-widest uppercase mb-2">
-              AVALADO EN EL CAMPO
+              AVALADO EN EL CAMPO OPERATIVO
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight uppercase">
-              TESTIMOANIOS DE OPERADORES
+              TESTIMONIOS DE OPERADORES
             </h2>
           </div>
 
@@ -904,25 +795,25 @@ export default function HomePage() {
               {
                 initials: 'MR',
                 name: 'Mayor Roberto V.',
-                role: 'Unidad de Operaciones Especiales',
-                review: '"El chaleco modular Molle resistió 3 semanas continuas de despliegue en bosque húmedo sin una sola costura cedida."',
+                role: 'Unidad de Operaciones Especiales (Cochabamba)',
+                review: '"El plate carrier Nivel IV resistió 3 semanas continuas de despliegue en bosque húmedo sin una sola costura cedida."',
               },
               {
                 initials: 'DC',
                 name: 'Dra. Claudia M.',
-                role: 'Rescate Alpino & Trauma',
+                role: 'Rescate Alpino & Trauma (La Paz)',
                 review: '"La mochila táctica 45L nos permitió cargar 2 desfibriladores y material de trauma sin pérdida de movilidad en ascenso vertical."',
               },
               {
                 initials: 'JS',
                 name: 'Javier S.',
-                role: 'Instructor de Tiro Defensivo',
-                review: '"El pago con QR y verificación directa fue inmediata. Recibí el paquete al día siguiente con empaque sellado al vacío."',
+                role: 'Instructor de Tiro Defensivo (Santa Cruz)',
+                review: '"El pago con QR Simple y la verificación inmediata fue excelente. Recibí el paquete por flota con empaque sellado al vacío y el souvenir táctico de regalo."',
               },
             ].map((t, i) => (
               <div
                 key={i}
-                className="glass-card p-6 flex flex-col justify-between group hover:border-[#C8A961]/20 animate-on-scroll"
+                className="glass-card p-6 flex flex-col justify-between group hover:border-[#C8A961]/30 animate-on-scroll"
                 style={{ transitionDelay: `${i * 100}ms` }}
               >
                 <div>
@@ -934,7 +825,7 @@ export default function HomePage() {
                   <p className="text-xs sm:text-sm text-[#A1A1AA] leading-relaxed italic mb-6">{t.review}</p>
                 </div>
                 <div className="pt-4 border-t border-[#22222A] flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#0D0D10] border border-[#C8A961]/25 flex items-center justify-center font-mono font-bold text-[#C8A961] text-xs group-hover:border-[#C8A961]/40 transition-colors">
+                  <div className="w-10 h-10 rounded-full bg-[#0D0D10] border border-[#C8A961]/25 flex items-center justify-center font-mono font-bold text-[#C8A961] text-xs group-hover:border-[#C8A961]/50 transition-colors">
                     {t.initials}
                   </div>
                   <div>
@@ -951,27 +842,24 @@ export default function HomePage() {
       </section>
 
       {/* ================================================================= */}
-      {/* FLAGSHIP PRODUCT — Hero Spotlight                                  */}
+      {/* FLAGSHIP PRODUCT SPOTLIGHT                                          */}
       {/* ================================================================= */}
       {flagshipProduct && (
         <section className="py-20 border-t border-[#22222A] bg-[#050507] relative overflow-hidden">
-          {/* Aurora background */}
-          <div className="absolute inset-0 aurora-bg" />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
             <div
               className="rounded-3xl border border-[#35353E] p-8 md:p-12 relative overflow-hidden animate-on-scroll"
               style={{
-                background: 'linear-gradient(135deg, rgba(17,17,22,0.95) 0%, rgba(22,22,30,0.9) 100%)',
+                background: 'linear-gradient(135deg, rgba(15,15,20,0.95) 0%, rgba(22,22,30,0.9) 100%)',
                 backdropFilter: 'blur(20px)',
-                boxShadow: '0 25px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)',
+                boxShadow: '0 25px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06)',
               }}
             >
-              {/* Top accent line */}
-              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#C8A961]/40 to-transparent" />
+              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#C8A961]/50 to-transparent" />
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
                 <div className="lg:col-span-7 space-y-5">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#C8A961]/10 text-[#C8A961] border border-[#C8A961]/25 text-xs font-mono font-bold">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#C8A961]/10 text-[#C8A961] border border-[#C8A961]/30 text-xs font-mono font-bold">
                     <Sparkles size={11} /> PRODUCTO INSIGNIA DE TEMPORADA
                   </span>
 
@@ -983,35 +871,40 @@ export default function HomePage() {
                     {flagshipProduct.description}
                   </p>
 
-                  <div className="flex items-center gap-6 py-2">
+                  <div className="flex items-center gap-6 py-2 font-mono">
                     <div>
-                      <div className="text-[10px] text-[#5E5E68] font-mono">PRECIO DIRECTO</div>
-                      <div className="text-3xl font-extrabold text-white font-mono text-glow-gold">
+                      <div className="text-[10px] text-[#5E5E68]">PRECIO DIRECTO</div>
+                      <div className="text-3xl font-extrabold text-white text-glow-gold">
                         Bs. {flagshipProduct.price.toFixed(2)}
                       </div>
                     </div>
                     <div className="h-8 w-[1px] bg-[#22222A]" />
                     <div>
-                      <div className="text-[10px] text-[#5E5E68] font-mono">ESTADO</div>
+                      <div className="text-[10px] text-[#5E5E68]">DISPONIBILIDAD</div>
                       <div className="text-sm font-bold text-[#30A46C] flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-[#30A46C] animate-pulse" />
-                        {flagshipProduct.stock > 0 ? `${flagshipProduct.stock} EN STOCK` : 'AGOTADO'}
+                        {flagshipProduct.stock > 0 ? `${flagshipProduct.stock} UDS EN ALMACÉN` : 'AGOTADO'}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex flex-wrap gap-3 pt-2">
                     <button
-                      onClick={() => { addItem(flagshipProduct, 1); router.push('/checkout'); }}
-                      className="btn-tactical text-xs px-8 py-3.5"
+                      onClick={() => {
+                        tacticalAudio.playAddCart();
+                        addItem(flagshipProduct, 1);
+                        router.push('/checkout');
+                      }}
+                      className="btn-tactical text-xs px-8 py-3.5 flex items-center gap-2"
                     >
-                      COMPRAR AHORA <ArrowRight size={14} />
+                      <ShoppingCart size={15} />
+                      <span>ORDENAR INMEDIATO</span>
                     </button>
                     <button
                       onClick={() => router.push(`/producto/${flagshipProduct.id}`)}
                       className="btn-outline-gold text-xs px-8 py-3.5"
                     >
-                      VER ESPECIFICACIONES
+                      VER FICHA TÉCNICA
                     </button>
                   </div>
                 </div>
@@ -1021,11 +914,10 @@ export default function HomePage() {
                     src={flagshipProduct.images[0] || 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=80'}
                     alt={flagshipProduct.name}
                     fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-700"
+                    className="object-cover group-hover:scale-108 transition-transform duration-700"
                     sizes="(max-width: 1024px) 100vw, 40vw"
                   />
-                  {/* Glare effect */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#050507]/60 via-transparent to-transparent" />
                 </div>
               </div>
             </div>
@@ -1034,11 +926,11 @@ export default function HomePage() {
       )}
 
       {/* ================================================================= */}
-      {/* NEWSLETTER                                                          */}
+      {/* CANAL DE DESPLIEGUE — Newsletter                                    */}
       {/* ================================================================= */}
       <section className="py-24 border-t border-[#22222A] bg-[#070709] text-center">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 animate-on-scroll">
-          <div className="w-14 h-14 rounded-2xl bg-[#C8A961]/10 border border-[#C8A961]/20 flex items-center justify-center text-[#C8A961] mx-auto mb-5 animate-float">
+          <div className="w-14 h-14 rounded-2xl bg-[#C8A961]/10 border border-[#C8A961]/25 flex items-center justify-center text-[#C8A961] mx-auto mb-5 animate-float">
             <Radio size={24} />
           </div>
 
@@ -1046,12 +938,12 @@ export default function HomePage() {
             ÚNETE AL CANAL DE DESPLIEGUE
           </h2>
           <p className="text-xs sm:text-sm text-[#7A7A85] max-w-lg mx-auto mb-8 leading-relaxed">
-            Alertas prioritarias de reabastecimiento, prototipos confidenciales y descuentos para operadores acreditados.
+            Alertas prioritarias de reabastecimiento, lotes balísticos confidenciales y descuentos para operadores en Bolivia.
           </p>
 
           {newsletterSubscribed ? (
             <div className="p-4 rounded-xl bg-[#30A46C]/10 border border-[#30A46C]/25 text-[#30A46C] text-xs font-mono font-bold flex items-center justify-center gap-2 max-w-md mx-auto">
-              <CheckCircle2 size={16} /> OPERADOR ENLAZADO. COMUNICADOS VÍA CORREO.
+              <CheckCircle2 size={16} /> OPERADOR ENLAZADO AL CANAL DE DESPACHO
             </div>
           ) : (
             <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
@@ -1059,8 +951,8 @@ export default function HomePage() {
                 type="email"
                 required
                 value={newsletterEmail}
-                onChange={e => setNewsletterEmail(e.target.value)}
-                placeholder="operador@tacticos.com"
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                placeholder="operador@tacticos.bo"
                 className="flex-1 bg-[#0D0D10] border border-[#22222A] rounded-xl px-5 py-3.5 text-xs text-white placeholder-[#5E5E68] focus:border-[#C8A961]/50 focus:outline-none font-mono transition-all"
               />
               <button type="submit" className="btn-tactical text-xs py-3.5 px-6 whitespace-nowrap">
@@ -1070,7 +962,7 @@ export default function HomePage() {
           )}
 
           <div className="text-[10px] text-[#5E5E68] font-mono mt-4">
-            SIN SPAM · CANCELA EN CUALQUIER MOMENTO · PROTOCOLO DE PRIVACIDAD MIL-STD
+            SIN SPAM · PROTOCOLO DE PRIVACIDAD MIL-STD · DESUSCRIPCIÓN CON 1 CLIC
           </div>
         </div>
       </section>
@@ -1079,12 +971,11 @@ export default function HomePage() {
       {/* FOOTER                                                              */}
       {/* ================================================================= */}
       <footer className="border-t border-[#22222A] bg-[#030305] pt-16 pb-10 relative">
-        {/* Top gold accent */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#C8A961]/25 to-transparent" />
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#C8A961]/30 to-transparent" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-14">
-            {/* Brand */}
+            {/* Brand HQ */}
             <div className="col-span-2 md:col-span-1 space-y-4">
               <div className="flex items-center gap-2">
                 <Shield size={20} className="text-[#C8A961]" />
@@ -1093,26 +984,26 @@ export default function HomePage() {
                 </span>
               </div>
               <p className="text-xs text-[#5E5E68] leading-relaxed">
-                Base central en Cochabamba, Bolivia (Av. Heroínas). Retiro gratuito en almacén, delivery motorizado urbano y despachos por flota a todo el país.
+                Base central en Cochabamba, Bolivia (Av. Heroínas #560). Retiro gratuito en almacén, delivery motorizado urbano y despachos por flota a todo el país.
               </p>
               <div className="flex items-center gap-2 text-[10px] font-mono text-[#30A46C] bg-[#0D0D10] px-3 py-1.5 rounded-lg border border-[#22222A] w-fit">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#30A46C] animate-ping" />
-                HQ COCHABAMBA ONLINE
+                HQ COCHABAMBA OPERATIVO
               </div>
             </div>
 
-            {/* Arsenal */}
+            {/* Arsenal links */}
             <div>
               <div className="text-xs font-mono font-bold text-white uppercase tracking-wider mb-4">ARSENAL</div>
               <ul className="space-y-2 text-xs text-[#7A7A85]">
-                {categories.slice(0, 5).map(cat => (
+                {categories.slice(0, 5).map((cat) => (
                   <li key={cat.id}>
                     <button
                       onClick={() => {
                         setSelectedCategory(cat.id);
                         document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' });
                       }}
-                      className="hover:text-[#C8A961] transition-colors duration-200 text-left"
+                      className="hover:text-[#C8A961] transition-colors text-left"
                     >
                       {cat.name}
                     </button>
@@ -1121,25 +1012,25 @@ export default function HomePage() {
               </ul>
             </div>
 
-            {/* Soporte */}
+            {/* Logistics & Support */}
             <div>
               <div className="text-xs font-mono font-bold text-white uppercase tracking-wider mb-4">SOPORTE</div>
               <ul className="space-y-2 text-xs text-[#7A7A85]">
                 <li><Link href="/ordenes" className="hover:text-[#C8A961] transition-colors">Seguimiento de Órdenes</Link></li>
+                <li><a href="#simulador-envios" className="hover:text-[#C8A961] transition-colors">Tarifas de Delivery</a></li>
                 <li><a href="#bloque-valor" className="hover:text-[#C8A961] transition-colors">Certificados Balísticos</a></li>
-                <li><a href="#bloque-valor" className="hover:text-[#C8A961] transition-colors">Guía de Tallas Molle</a></li>
                 <li><Link href="/admin/overview" className="hover:text-[#C8A961] transition-colors">Consola de Mando</Link></li>
               </ul>
             </div>
 
-            {/* Pagos */}
+            {/* QR Simple Bolivia */}
             <div>
-              <div className="text-xs font-mono font-bold text-white uppercase tracking-wider mb-4">PAGO CON QR</div>
+              <div className="text-xs font-mono font-bold text-white uppercase tracking-wider mb-4">PAGO CON QR BOLIVIA</div>
               <p className="text-xs text-[#5E5E68] mb-3 leading-relaxed">
-                Liquidación bancaria instantánea. Sin intermediarios ni cargos ocultos.
+                Liquidación bancaria instantánea. Sin comisiones extra para el cliente.
               </p>
               <div className="flex flex-wrap gap-2">
-                {['BANCO QR', 'POS DIRECT', 'IMGBB'].map(tag => (
+                {['SIMPLE QR', 'BNB', 'BCP', 'BANCO UNIÓN'].map((tag) => (
                   <span key={tag} className="px-2 py-1 rounded bg-[#0D0D10] border border-[#22222A] text-[10px] font-mono text-[#7A7A85]">
                     {tag}
                   </span>

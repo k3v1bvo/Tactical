@@ -68,51 +68,51 @@ export const demoClient: Profile = {
 export const demoProducts: Product[] = [
   {
     id: 'prod-01', name: 'Plate Carrier Táctico Nivel IV', description: 'Porta-placas táctico con sistema MOLLE completo. Compatible con placas balísticas NIJ IV. Ajuste rápido con velcro y hebillas. Color: Multicam. Ideal para operaciones de alto riesgo y entrenamiento avanzado.',
-    price: 289.99, stock: 15, low_stock_threshold: 3, category_id: 'cat-01', images: ['/placeholder-tactical.svg'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-03-01T10:00:00Z', updated_at: '2026-09-15T10:00:00Z', deleted_at: null, category: demoCategories[0]
+    price: 289.99, stock: 15, low_stock_threshold: 3, category_id: 'cat-01', images: ['https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-03-01T10:00:00Z', updated_at: '2026-09-15T10:00:00Z', deleted_at: null, category: demoCategories[0]
   },
   {
     id: 'prod-02', name: 'Botas Tácticas Desert Storm', description: 'Botas de combate con suela Vibram, membrana impermeable Gore-Tex, puntera reforzada. Altura: 8 pulgadas. Color: Arena. Perfectas para terrenos desérticos y operaciones prolongadas.',
-    price: 179.99, stock: 22, low_stock_threshold: 5, category_id: 'cat-02', images: ['/placeholder-tactical.svg'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-03-05T10:00:00Z', updated_at: '2026-09-10T10:00:00Z', deleted_at: null, category: demoCategories[1]
+    price: 179.99, stock: 22, low_stock_threshold: 5, category_id: 'cat-02', images: ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-03-05T10:00:00Z', updated_at: '2026-09-10T10:00:00Z', deleted_at: null, category: demoCategories[1]
   },
   {
     id: 'prod-03', name: 'Mira Holográfica EOTech XPS3', description: 'Mira holográfica de punto rojo con retícula 68 MOA. Compatible con visión nocturna NV. Sumergible hasta 10 metros. Batería CR123A incluida. Construcción de aluminio aeronáutico.',
-    price: 599.99, stock: 8, low_stock_threshold: 2, category_id: 'cat-03', images: ['/placeholder-tactical.svg'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-03-10T10:00:00Z', updated_at: '2026-09-12T10:00:00Z', deleted_at: null, category: demoCategories[2]
+    price: 599.99, stock: 8, low_stock_threshold: 2, category_id: 'cat-03', images: ['https://images.unsplash.com/photo-1595590424283-b8f17842773f?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-03-10T10:00:00Z', updated_at: '2026-09-12T10:00:00Z', deleted_at: null, category: demoCategories[2]
   },
   {
     id: 'prod-04', name: 'Mochila Táctica 72h Assault Pack', description: 'Mochila de asalto 45L con sistema MOLLE integral, compartimento para hidratación 3L, múltiples bolsillos organizadores y correas de compresión. Color: OD Green. Cordura 1000D.',
-    price: 129.99, stock: 30, low_stock_threshold: 5, category_id: 'cat-04', images: ['/placeholder-tactical.svg'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-03-15T10:00:00Z', updated_at: '2026-09-08T10:00:00Z', deleted_at: null, category: demoCategories[3]
+    price: 129.99, stock: 30, low_stock_threshold: 5, category_id: 'cat-04', images: ['https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-03-15T10:00:00Z', updated_at: '2026-09-08T10:00:00Z', deleted_at: null, category: demoCategories[3]
   },
   {
     id: 'prod-05', name: 'Guantes Tácticos Oakley SI Assault', description: 'Guantes de operaciones especiales con protección en nudillos de carbono, palma antideslizante con refuerzo Kevlar y compatibilidad con pantalla táctil. Tallas: M a XL.',
-    price: 64.99, stock: 45, low_stock_threshold: 10, category_id: 'cat-05', images: ['/placeholder-tactical.svg'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-04-01T10:00:00Z', updated_at: '2026-09-05T10:00:00Z', deleted_at: null, category: demoCategories[4]
+    price: 64.99, stock: 45, low_stock_threshold: 10, category_id: 'cat-05', images: ['https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-04-01T10:00:00Z', updated_at: '2026-09-05T10:00:00Z', deleted_at: null, category: demoCategories[4]
   },
   {
     id: 'prod-06', name: 'Cuchillo KA-BAR USMC Full Size', description: 'Cuchillo de combate USMC legendario con hoja de acero al carbono 1095 Cro-Van de 7 pulgadas. Mango de cuero apilado. Incluye funda Kydex de retención positiva.',
-    price: 89.99, stock: 18, low_stock_threshold: 3, category_id: 'cat-06', images: ['/placeholder-tactical.svg'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-04-10T10:00:00Z', updated_at: '2026-09-01T10:00:00Z', deleted_at: null, category: demoCategories[5]
+    price: 89.99, stock: 18, low_stock_threshold: 3, category_id: 'cat-06', images: ['https://images.unsplash.com/photo-1593784991095-a205069470b6?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-04-10T10:00:00Z', updated_at: '2026-09-01T10:00:00Z', deleted_at: null, category: demoCategories[5]
   },
   {
     id: 'prod-07', name: 'Radio Baofeng UV-5R Tactical Kit', description: 'Radio bidireccional dual-band VHF/UHF con 128 canales programables, batería Li-ion 1800mAh y alcance operativo hasta 5km. Incluye auricular táctico de tubo acústico y antena extendida.',
-    price: 39.99, stock: 50, low_stock_threshold: 10, category_id: 'cat-07', images: ['/placeholder-tactical.svg'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-04-15T10:00:00Z', updated_at: '2026-08-28T10:00:00Z', deleted_at: null, category: demoCategories[6]
+    price: 39.99, stock: 50, low_stock_threshold: 10, category_id: 'cat-07', images: ['https://images.unsplash.com/photo-1544717305-2782549b5136?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-04-15T10:00:00Z', updated_at: '2026-08-28T10:00:00Z', deleted_at: null, category: demoCategories[6]
   },
   {
     id: 'prod-08', name: 'Pantalón Cargo Táctico Ripstop', description: 'Pantalón de combate con tela ripstop reforzada 65/35 poly-cotton, rodilleras integradas removibles, 8 bolsillos cargo con cierre silencioso y cintura ajustable. Color: Khaki.',
-    price: 54.99, stock: 60, low_stock_threshold: 10, category_id: 'cat-08', images: ['/placeholder-tactical.svg'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-04-20T10:00:00Z', updated_at: '2026-08-25T10:00:00Z', deleted_at: null, category: demoCategories[7]
+    price: 54.99, stock: 60, low_stock_threshold: 10, category_id: 'cat-08', images: ['https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-04-20T10:00:00Z', updated_at: '2026-08-25T10:00:00Z', deleted_at: null, category: demoCategories[7]
   },
   {
     id: 'prod-09', name: 'Linterna Táctica SureFire G2X Pro', description: 'Linterna LED de 600 lúmenes con cuerpo de polímero Nitrolon, 2 modos (alto 600lm / bajo 15lm), bisel de acero inoxidable con corona táctica. 2x CR123A.',
-    price: 79.99, stock: 4, low_stock_threshold: 5, category_id: 'cat-03', images: ['/placeholder-tactical.svg'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-05-01T10:00:00Z', updated_at: '2026-09-18T10:00:00Z', deleted_at: null, category: demoCategories[2]
+    price: 79.99, stock: 4, low_stock_threshold: 5, category_id: 'cat-03', images: ['https://images.unsplash.com/photo-1517420704952-d9f39e95b43e?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-05-01T10:00:00Z', updated_at: '2026-09-18T10:00:00Z', deleted_at: null, category: demoCategories[2]
   },
   {
     id: 'prod-10', name: 'Cinturón Táctico Rigger D-Ring', description: 'Cinturón de servicio con hebilla de liberación rápida V-Ring certificado para rappel, refuerzo interno rígido Scuba Webbing y sistema MOLLE. Ancho: 1.75". Color: Coyote Brown.',
-    price: 44.99, stock: 35, low_stock_threshold: 5, category_id: 'cat-05', images: ['/placeholder-tactical.svg'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-05-05T10:00:00Z', updated_at: '2026-08-20T10:00:00Z', deleted_at: null, category: demoCategories[4]
+    price: 44.99, stock: 35, low_stock_threshold: 5, category_id: 'cat-05', images: ['https://images.unsplash.com/photo-1608256246200-53e635b5b65f?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-05-05T10:00:00Z', updated_at: '2026-08-20T10:00:00Z', deleted_at: null, category: demoCategories[4]
   },
   {
     id: 'prod-11', name: 'Chaleco Táctico Ligero MOLLE', description: 'Chaleco táctico ligero con sistema MOLLE completo frontal y posterior, ventilación mesh interior, bolsillos para 6 cargadores y panel de administración con velcro.',
-    price: 69.99, stock: 40, low_stock_threshold: 8, category_id: 'cat-01', images: ['/placeholder-tactical.svg'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-05-10T10:00:00Z', updated_at: '2026-08-15T10:00:00Z', deleted_at: null, category: demoCategories[0]
+    price: 69.99, stock: 40, low_stock_threshold: 8, category_id: 'cat-01', images: ['https://images.unsplash.com/photo-1508962914676-134849a727f0?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-05-10T10:00:00Z', updated_at: '2026-08-15T10:00:00Z', deleted_at: null, category: demoCategories[0]
   },
   {
     id: 'prod-12', name: 'Kit de Supervivencia Táctico 15-en-1', description: 'Kit compacto con pedernal, brújula de orientación, sierra de cable, manta térmica aluminizada, silbato de emergencia, linterna mini y 10 herramientas más en estuche MOLLE.',
-    price: 34.99, stock: 2, low_stock_threshold: 10, category_id: 'cat-06', images: ['/placeholder-tactical.svg'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-05-15T10:00:00Z', updated_at: '2026-09-19T10:00:00Z', deleted_at: null, category: demoCategories[5]
+    price: 34.99, stock: 2, low_stock_threshold: 10, category_id: 'cat-06', images: ['https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=800&auto=format&fit=crop&q=80'], vendor_id: 'vendor-01', is_active: true, created_at: '2026-05-15T10:00:00Z', updated_at: '2026-09-19T10:00:00Z', deleted_at: null, category: demoCategories[5]
   },
 ];
 
