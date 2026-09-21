@@ -12,7 +12,9 @@ interface AuthContextType {
   userId: string;
   userName: string;
   userEmail: string;
-  user: { id: string; name: string; email: string };
+  userPhone: string;
+  userAvatar: string | null;
+  user: { id: string; name: string; email: string; phone?: string; avatar_url?: string | null };
   isAdmin: boolean;
   isVendor: boolean;
   isClient: boolean;
@@ -21,15 +23,16 @@ interface AuthContextType {
   openAuthModal: () => void;
   closeAuthModal: () => void;
   signIn: (email: string, pass: string) => Promise<boolean>;
-  signUp: (email: string, pass: string, fullName: string) => Promise<boolean>;
+  signUp: (email: string, pass: string, fullName: string, phone?: string) => Promise<boolean>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   switchDemoRole: (role: AppRole) => void;
 }
 
-const roleProfiles: Record<AppRole, { id: string; name: string; email: string }> = {
-  admin: { id: 'admin-01', name: 'Comandante Dueño', email: 'admin@tacticos.bo' },
-  vendor: { id: 'vendor-01', name: 'Carlos Chofer (Driver)', email: 'driver1@tacticos.bo' },
-  client: { id: 'client-01', name: 'Juan Operativo', email: 'cliente@tacticos.bo' },
+const roleProfiles: Record<AppRole, { id: string; name: string; email: string; phone: string; avatar_url: string | null }> = {
+  admin: { id: 'admin-01', name: 'Comandante Dueño', email: 'admin@tacticos.bo', phone: '+591 71234567', avatar_url: null },
+  vendor: { id: 'vendor-01', name: 'Carlos Chofer (Driver)', email: 'driver1@tacticos.bo', phone: '+591 76543210', avatar_url: null },
+  client: { id: 'client-01', name: 'Juan Operativo', email: 'cliente@tacticos.bo', phone: '+591 75512345', avatar_url: null },
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,7 +40,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole>('client');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authUser, setAuthUser] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [authUser, setAuthUser] = useState<{ id: string; name: string; email: string; phone: string; avatar_url: string | null } | null>(null);
 
   // Sync Supabase Auth session on mount
   useEffect(() => {
@@ -46,16 +49,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     client.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        setAuthUser({
-          id: session.user.id,
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Operador',
-          email: session.user.email || '',
-        });
+        const u = session.user;
+        const initialUser = {
+          id: u.id,
+          name: u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || 'Operador',
+          email: u.email || '',
+          phone: u.user_metadata?.phone || '',
+          avatar_url: u.user_metadata?.avatar_url || u.user_metadata?.picture || null,
+        };
+        setAuthUser(initialUser);
+
+        // Fetch full profile from Supabase profiles table
+        client
+          .from('profiles')
+          .select('full_name, phone, avatar_url')
+          .eq('id', u.id)
+          .single()
+          .then(({ data: prof }) => {
+            if (prof) {
+              setAuthUser(prev => prev ? {
+                ...prev,
+                name: prof.full_name || prev.name,
+                phone: prof.phone || prev.phone,
+                avatar_url: prof.avatar_url || prev.avatar_url,
+              } : null);
+            }
+          });
+
         // Check role from user_roles
         client
           .from('user_roles')
           .select('role')
-          .eq('user_id', session.user.id)
+          .eq('user_id', u.id)
           .single()
           .then(({ data }) => {
             if (data?.role) {
@@ -69,10 +94,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = client.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
+        const u = session.user;
         setAuthUser({
-          id: session.user.id,
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Operador',
-          email: session.user.email || '',
+          id: u.id,
+          name: u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || 'Operador',
+          email: u.email || '',
+          phone: u.user_metadata?.phone || '',
+          avatar_url: u.user_metadata?.avatar_url || u.user_metadata?.picture || null,
+        });
+
+        // Ensure user profile in public.profiles
+        client.from('profiles').upsert({
+          id: u.id,
+          email: u.email || '',
+          full_name: u.user_metadata?.full_name || u.user_metadata?.name || null,
+          phone: u.user_metadata?.phone || null,
+          avatar_url: u.user_metadata?.avatar_url || u.user_metadata?.picture || null,
+          updated_at: new Date().toISOString(),
+        }).then(({ error: pErr }) => {
+          if (pErr) console.warn('Profile sync notice:', pErr.message);
         });
       } else {
         setAuthUser(null);
@@ -100,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
-  const signUp = async (email: string, pass: string, fullName: string): Promise<boolean> => {
+  const signUp = async (email: string, pass: string, fullName: string, phone?: string): Promise<boolean> => {
     const client = supabase;
     if (!client) {
       toast.error('Supabase no configurado');
@@ -110,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password: pass,
       options: {
-        data: { full_name: fullName },
+        data: { full_name: fullName, phone: phone || '' },
       },
     });
     if (error) {
@@ -119,14 +159,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (data.user) {
+      const u = data.user;
       setAuthUser({
-        id: data.user.id,
-        name: fullName || data.user.email?.split('@')[0] || 'Operador',
-        email: data.user.email || email,
+        id: u.id,
+        name: fullName || u.email?.split('@')[0] || 'Operador',
+        email: u.email || email,
+        phone: phone || '',
+        avatar_url: null,
+      });
+
+      // Save to Supabase profiles table
+      client.from('profiles').upsert({
+        id: u.id,
+        email: u.email || email,
+        full_name: fullName,
+        phone: phone || null,
+        updated_at: new Date().toISOString(),
+      }).then(({ error: pErr }) => {
+        if (pErr) console.warn('Profile upsert notice:', pErr.message);
       });
     }
 
-    // Send official welcome email via Google SMTP (ayniprotocol@gmail.com)
+    // Send official welcome email via Google SMTP
     fetch('/api/notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -134,13 +188,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         to: email,
         subject: '¡Bienvenido al Centro de Mando Táctico Bolivia!',
         title: 'CREDENCIALES DE OPERADOR ASIGNADAS',
-        message: `Estimado(a) ${fullName || 'Operador'}, tu cuenta ha sido creada con éxito en la plataforma de Tienda Táctica Cochabamba (Base Heroínas #560). Ya puedes explorar nuestro arsenal, realizar pedidos con despacho local o envíos a toda Bolivia.`,
+        message: `Estimado(a) ${fullName || 'Operador'}, tu cuenta ha sido creada con éxito en la plataforma de Tienda Táctica Cochabamba (Base Heroínas #560). Teléfono de contacto registrado: ${phone || 'Sin especificar'}. Ya puedes explorar nuestro arsenal, realizar pedidos con despacho local o envíos a toda Bolivia.`,
       }),
     }).catch(e => console.warn('Could not send welcome email:', e));
 
     toast.success('¡Operador registrado con éxito!');
     setIsAuthModalOpen(false);
     return true;
+  };
+
+  const signInWithGoogle = async () => {
+    const client = supabase;
+    if (!client) {
+      toast.error('Supabase no configurado');
+      return;
+    }
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    });
+    if (error) {
+      toast.error('Error al conectar con Google', { description: error.message });
+    }
   };
 
   const signOut = async () => {
@@ -169,6 +244,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userId: currentProfile.id,
         userName: currentProfile.name,
         userEmail: currentProfile.email,
+        userPhone: currentProfile.phone,
+        userAvatar: currentProfile.avatar_url,
         user: currentProfile,
         isAdmin: role === 'admin',
         isVendor: role === 'vendor',
@@ -179,6 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         closeAuthModal: () => setIsAuthModalOpen(false),
         signIn,
         signUp,
+        signInWithGoogle,
         signOut,
         switchDemoRole,
       }}

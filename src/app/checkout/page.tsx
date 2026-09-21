@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Navbar } from '@/components/Navbar';
 import { useCart } from '@/context/CartContext';
 import { useStore } from '@/context/StoreContext';
+import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import {
   QrCode,
@@ -57,6 +58,7 @@ const PICKUP_TIME_SLOTS = [
 export default function CheckoutPage() {
   const { items, totalPrice, totalItems, clearCart } = useCart();
   const { shippingZones, storeSettings, createOrder } = useStore();
+  const { userName, userEmail, userPhone, isLoggedIn } = useAuth();
   const router = useRouter();
 
   // Form states
@@ -65,6 +67,17 @@ export default function CheckoutPage() {
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
+
+  // Auto pre-fill customer information if user is logged in
+  useEffect(() => {
+    if (isLoggedIn) {
+      if (userName && !customerName) setCustomerName(userName);
+      if (userEmail && !customerEmail) setCustomerEmail(userEmail);
+      if (userPhone && !customerPhone) {
+        setCustomerPhone(userPhone.replace('+591', '').trim());
+      }
+    }
+  }, [isLoggedIn, userName, userEmail, userPhone]);
 
   // 3 Delivery Types
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('delivery');

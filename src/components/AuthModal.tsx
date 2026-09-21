@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Lock, Mail, User, X, CheckCircle2, ArrowRight, Key, Sparkles } from 'lucide-react';
+import { Shield, Lock, Mail, User, X, CheckCircle2, ArrowRight, Key, Sparkles, Phone } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { tacticalAudio } from '@/lib/tactical-audio';
 import type { AppRole } from '@/lib/types';
@@ -12,6 +12,7 @@ export function AuthModal() {
     closeAuthModal,
     signIn,
     signUp,
+    signInWithGoogle,
     isLoggedIn,
     userName,
     userEmail,
@@ -24,6 +25,7 @@ export function AuthModal() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Close on Escape key and prevent background scroll
@@ -57,9 +59,14 @@ export function AuthModal() {
     if (tab === 'login') {
       await signIn(email, password);
     } else {
-      await signUp(email, password, fullName);
+      await signUp(email, password, fullName, phone);
     }
     setLoading(false);
+  };
+
+  const handleGoogleAuth = async () => {
+    tacticalAudio.playLockOn();
+    await signInWithGoogle();
   };
 
   const handleDemoSwitch = (r: AppRole) => {
@@ -181,23 +188,47 @@ export function AuthModal() {
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 {tab === 'register' && (
-                  <div>
-                    <label className="block text-[10px] font-mono text-[#A1A1AA] uppercase mb-1.5 font-semibold">
-                      NOMBRE COMPLETO
-                    </label>
-                    <div className="relative">
-                      <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7A7A85]" />
-                      <input
-                        type="text"
-                        required
-                        autoComplete="name"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Ej. Roberto Vargas"
-                        className="w-full min-h-[48px] bg-[#14141C] border border-[#262632] text-xs text-white rounded-xl pl-10 pr-4 py-3 focus:border-[#C8A961] focus:ring-1 focus:ring-[#C8A961]/40 focus:outline-none font-sans transition-colors"
-                      />
+                  <>
+                    <div>
+                      <label className="block text-[10px] font-mono text-[#A1A1AA] uppercase mb-1.5 font-semibold">
+                        NOMBRE COMPLETO *
+                      </label>
+                      <div className="relative">
+                        <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7A7A85]" />
+                        <input
+                          type="text"
+                          required
+                          autoComplete="name"
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          placeholder="Ej. Roberto Vargas"
+                          className="w-full min-h-[48px] bg-[#14141C] border border-[#262632] text-xs text-white rounded-xl pl-10 pr-4 py-3 focus:border-[#C8A961] focus:ring-1 focus:ring-[#C8A961]/40 focus:outline-none font-sans transition-colors"
+                        />
+                      </div>
                     </div>
-                  </div>
+
+                    <div>
+                      <label className="block text-[10px] font-mono text-[#C8A961] uppercase mb-1.5 font-semibold flex items-center justify-between">
+                        <span>TELÉFONO / WHATSAPP *</span>
+                        <span className="text-[#7A7A85]">+591 BOLIVIA</span>
+                      </label>
+                      <div className="relative">
+                        <Phone size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-emerald-400" />
+                        <input
+                          type="tel"
+                          required
+                          autoComplete="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="Ej. 71234567 o 60012345"
+                          className="w-full min-h-[48px] bg-[#14141C] border border-emerald-500/30 text-xs text-white rounded-xl pl-10 pr-4 py-3 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/40 focus:outline-none font-mono transition-colors"
+                        />
+                      </div>
+                      <p className="text-[10px] text-[#7A7A85] mt-1 font-mono">
+                        Para coordinar despachos directos, alertas de entrega y WhatsApp.
+                      </p>
+                    </div>
+                  </>
                 )}
 
                 <div>
@@ -245,6 +276,43 @@ export function AuthModal() {
                   <ArrowRight size={14} />
                 </button>
               </form>
+
+              {/* Divider */}
+              <div className="relative my-4 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[#22222A]" />
+                </div>
+                <span className="relative bg-[#0B0B10] px-3 text-[10px] font-mono uppercase text-[#7A7A85]">
+                  O ACCESO RÁPIDO
+                </span>
+              </div>
+
+              {/* Google Sign-in Button */}
+              <button
+                type="button"
+                onClick={handleGoogleAuth}
+                className="w-full min-h-[48px] rounded-xl bg-white hover:bg-neutral-100 text-neutral-900 font-bold text-xs flex items-center justify-center gap-3 px-4 shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+                <span>CONTINUAR CON GOOGLE</span>
+              </button>
             </>
           )}
 
