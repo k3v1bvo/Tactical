@@ -63,6 +63,8 @@ export function TiltProductCard({ product }: TiltProductCardProps) {
   };
 
   const imgUrl = product.images?.[0] || 'https://images.unsplash.com/photo-1784612207661-f0deb9ce0223?w=800&auto=format&fit=crop&q=80';
+  const hoverImgUrl = (product.images && product.images.length > 1) ? product.images[1] : null;
+  const photoCount = product.images ? product.images.length : 1;
 
   return (
     <div
@@ -100,14 +102,26 @@ export function TiltProductCard({ product }: TiltProductCardProps) {
         {/* Product Image Stage */}
         <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-[#14141a] mb-3">
           <Image
-            src={imgUrl}
+            src={isHovered && hoverImgUrl ? hoverImgUrl : imgUrl}
             alt={product.name}
             fill
-            className="object-cover group-hover:scale-108 transition-transform duration-500 brightness-90 group-hover:brightness-100"
+            className="object-cover group-hover:scale-108 transition-all duration-500 brightness-90 group-hover:brightness-100"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
           />
 
           <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c10]/80 via-transparent to-transparent opacity-60 group-hover:opacity-30 transition-opacity" />
+
+          {/* Multi-photo badge */}
+          {photoCount > 1 && (
+            <div
+              className="absolute bottom-2.5 right-2.5 z-20 pointer-events-none"
+              style={{ transform: 'translateZ(20px)' }}
+            >
+              <span className="bg-black/85 text-[#C8A961] text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border border-[#C8A961]/35 backdrop-blur-md shadow flex items-center gap-1">
+                <Sparkles size={10} /> +{photoCount} fotos
+              </span>
+            </div>
+          )}
 
           {/* Badges Floating in 3D */}
           <div

@@ -84,7 +84,8 @@ interface StoreContextType {
     stock: number;
     low_stock_threshold: number;
     category_id: string;
-    image: string;
+    image?: string;
+    images?: string[];
   }) => Product;
   updateProduct: (
     id: string,
@@ -97,6 +98,7 @@ interface StoreContextType {
       low_stock_threshold: number;
       category_id: string;
       image: string;
+      images: string[];
       is_active: boolean;
     }>
   ) => void;
@@ -397,16 +399,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
 
     setCategories(prev => [...prev, newCategory]);
+
+    const client = supabase;
+    if (client) {
+      client.from('categories').insert({
+        id: newCategory.id,
+        name: newCategory.name,
+        slug: newCategory.slug,
+        description: newCategory.description,
+        is_active: true,
+      }).then(({ error }) => {
+        if (error) console.warn('Supabase category insert error:', error.message);
+      });
+    }
+
     toast.success(`Categoría "${name}" creada con éxito`);
     return newCategory;
   };
 
   const updateCategory = (id: string, data: { name?: string; description?: string }) => {
+    let updatedName: string | undefined;
+    let updatedSlug: string | undefined;
+
     setCategories(prev =>
       prev.map(c => {
         if (c.id === id) {
-          const updatedName = data.name ? data.name.trim() : c.name;
-          const updatedSlug = data.name ? updatedName.toLowerCase().replace(/[^a-z0-9]+/g, '-') : c.slug;
+          updatedName = data.name ? data.name.trim() : c.name;
+          updatedSlug = data.name ? updatedName.toLowerCase().replace(/[^a-z0-9]+/g, '-') : c.slug;
           return {
             ...c,
             name: updatedName,
@@ -417,17 +436,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return c;
       })
     );
+
+    const client = supabase;
+    if (client) {
+      client.from('categories').update({
+        ...(data.name && { name: data.name.trim(), slug: data.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') }),
+        ...(data.description !== undefined && { description: data.description }),
+        updated_at: new Date().toISOString(),
+      }).eq('id', id).then(({ error }) => {
+        if (error) console.warn('Supabase category update error:', error.message);
+      });
+    }
+
     toast.success('Categoría actualizada con éxito');
   };
 
   const deleteCategory = (id: string): boolean => {
     const hasProducts = products.some(p => p.category_id === id);
     if (hasProducts) {
-      toast.error('No se puede eliminar: existen productos asociados a esta categoría.');
+      toast.error('No se puede eliminar: existen productos asociados a esta categoría. Reasigna o elimina los productos primero.');
       return false;
     }
 
     setCategories(prev => prev.filter(c => c.id !== id));
+
+    const client = supabase;
+    if (client) {
+      client.from('categories').delete().eq('id', id).then(({ error }) => {
+        if (error) console.warn('Supabase category delete error:', error.message);
+      });
+    }
+
     toast.info('Categoría eliminada');
     return true;
   };
@@ -441,9 +480,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     stock: number;
     low_stock_threshold: number;
     category_id: string;
-    image: string;
+    image?: string;
+    images?: string[];
   }): Product => {
     const categoryObj = categories.find(c => c.id === prod.category_id);
+    const finalImages = (prod.images && prod.images.length > 0)
+      ? prod.images
+      : (prod.image ? [prod.image] : ['https://images.unsplash.com/photo-1784612207661-f0deb9ce0223?w=800&auto=format&fit=crop&q=80']);
+
     const newProduct: Product = {
       id: `prod-${Date.now().toString(36)}`,
       name: prod.name.trim(),
@@ -455,7 +499,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       low_stock_threshold: Number(prod.low_stock_threshold),
       category_id: prod.category_id,
       category: categoryObj,
-      images: prod.image ? [prod.image] : ['https://images.unsplash.com/photo-1784612207661-f0deb9ce0223?w=800&auto=format&fit=crop&q=80'],
+      images: finalImages,
       is_active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -511,9 +555,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       low_stock_threshold: number;
       category_id: string;
       image: string;
+      images: string[];
       is_active: boolean;
     }>
   ) => {
+    let finalUpdatedImages: string[] | undefined;
+
     setProducts(prev =>
       prev.map(p => {
         if (p.id === id) {
@@ -538,6 +585,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             setAlerts(a => [newAlert, ...a]);
           }
 
+          const imagesToSet = data.images !== undefined
+            ? data.images
+            : (data.image ? [data.image] : p.images);
+
+          finalUpdatedImages = imagesToSet;
+
           return {
             ...p,
             name: data.name !== undefined ? data.name : p.name,
@@ -548,7 +601,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             low_stock_threshold: updatedThreshold,
             category_id: data.category_id !== undefined ? data.category_id : p.category_id,
             category: categoryObj,
-            images: data.image ? [data.image] : p.images,
+            images: imagesToSet,
             is_active: data.is_active !== undefined ? data.is_active : p.is_active,
             updated_at: new Date().toISOString(),
           };
@@ -567,7 +620,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...(data.stock !== undefined && { stock: data.stock }),
         ...(data.low_stock_threshold !== undefined && { low_stock_threshold: data.low_stock_threshold }),
         ...(data.category_id && { category_id: data.category_id }),
-        ...(data.image && { images: [data.image] }),
+        ...(finalUpdatedImages && { images: finalUpdatedImages }),
         ...(data.is_active !== undefined && { is_active: data.is_active }),
       }).eq('id', id).then(({ error }) => {
         if (error) console.error('Error updating product in Supabase:', error);

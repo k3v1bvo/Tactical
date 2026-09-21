@@ -15,6 +15,7 @@ export default function ProductDetailPage() {
   const { addItem } = useCart();
   const { products } = useStore();
   const [quantity, setQuantity] = useState(1);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const product = products.find(p => p.id === params.id);
 
@@ -29,6 +30,11 @@ export default function ProductDetailPage() {
       </div>
     );
   }
+
+  const allImages = Array.isArray(product.images) && product.images.length > 0
+    ? product.images
+    : ['https://images.unsplash.com/photo-1784612207661-f0deb9ce0223?w=800&auto=format&fit=crop&q=80'];
+  const currentImage = allImages[selectedImageIndex] || allImages[0];
 
   const isLowStock = product.stock <= product.low_stock_threshold;
   const isOutOfStock = product.stock === 0;
@@ -57,23 +63,58 @@ export default function ProductDetailPage() {
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-          {/* Image */}
-          <div className="glass-card-static overflow-hidden">
-            <div className="relative aspect-square">
-              <Image
-                src={product.images[0] || '/placeholder-tactical.svg'}
-                alt={product.name}
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                priority
-              />
-              {isOutOfStock && (
-                <div className="absolute inset-0 bg-tactical-900/70 flex items-center justify-center">
-                  <span className="badge badge-cancelled text-base px-4 py-2"><Package size={16} /> Agotado</span>
-                </div>
-              )}
+          {/* Multi-Photo Gallery Stage */}
+          <div className="space-y-3">
+            <div className="glass-card-static overflow-hidden relative rounded-2xl border border-[#22222A] bg-[#0c0c10]">
+              <div className="relative aspect-square">
+                <Image
+                  src={currentImage}
+                  alt={`${product.name} - Vista ${selectedImageIndex + 1}`}
+                  fill
+                  className="object-cover transition-all duration-300"
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  priority
+                />
+                {isOutOfStock && (
+                  <div className="absolute inset-0 bg-black/75 flex items-center justify-center">
+                    <span className="badge badge-cancelled text-base px-4 py-2"><Package size={16} /> Agotado</span>
+                  </div>
+                )}
+
+                {/* Photo counter */}
+                {allImages.length > 1 && (
+                  <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md text-[#C8A961] text-[10px] font-mono px-2.5 py-1 rounded-md border border-[#C8A961]/30">
+                    Foto {selectedImageIndex + 1} de {allImages.length}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Thumbnails row */}
+            {allImages.length > 1 && (
+              <div className="flex gap-2.5 overflow-x-auto pb-1 custom-scrollbar">
+                {allImages.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setSelectedImageIndex(idx)}
+                    className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 transition-all shrink-0 ${
+                      selectedImageIndex === idx
+                        ? 'border-[#C8A961] ring-2 ring-[#C8A961]/40 shadow-lg scale-105'
+                        : 'border-[#22222A] opacity-60 hover:opacity-100 hover:border-neutral-500'
+                    }`}
+                  >
+                    <Image
+                      src={img}
+                      alt={`Miniatura ${idx + 1}`}
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Details */}

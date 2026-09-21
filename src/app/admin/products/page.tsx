@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
 import { useStore } from '@/context/StoreContext';
-import { Search, Plus, Package, AlertTriangle, Edit, Trash2, ToggleLeft, ToggleRight, X, FolderPlus, Tag } from 'lucide-react';
+import { Search, Plus, Package, AlertTriangle, Edit, Trash2, ToggleLeft, ToggleRight, X, FolderPlus, Tag, ImageIcon, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { ImageUploader } from '@/components/ImageUploader';
 import type { Product, Category } from '@/lib/types';
@@ -27,7 +27,17 @@ export default function AdminProductsPage() {
   // Product Modal state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [productForm, setProductForm] = useState({
+  const [productForm, setProductForm] = useState<{
+    name: string;
+    category_id: string;
+    price: number;
+    cost_price: number;
+    stock: number;
+    low_stock_threshold: number;
+    description: string;
+    images: string[];
+    is_active: boolean;
+  }>({
     name: '',
     category_id: categories[0]?.id || '',
     price: 250.00,
@@ -35,9 +45,11 @@ export default function AdminProductsPage() {
     stock: 15,
     low_stock_threshold: 5,
     description: '',
-    image: '',
+    images: [],
     is_active: true,
   });
+
+  const [manualImageUrl, setManualImageUrl] = useState('');
 
   // Category Modal state
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -73,14 +85,19 @@ export default function AdminProductsPage() {
       stock: 15,
       low_stock_threshold: 5,
       description: '',
-      image: '',
+      images: [],
       is_active: true,
     });
+    setManualImageUrl('');
     setIsProductModalOpen(true);
   };
 
   const openEditProductModal = (p: Product) => {
     setEditingProduct(p);
+    const existingImages = Array.isArray(p.images) && p.images.length > 0
+      ? [...p.images]
+      : (p.images?.[0] ? [p.images[0]] : []);
+
     setProductForm({
       name: p.name,
       category_id: p.category_id || (categories[0]?.id || ''),
@@ -89,10 +106,44 @@ export default function AdminProductsPage() {
       stock: p.stock,
       low_stock_threshold: p.low_stock_threshold,
       description: p.description || '',
-      image: p.images[0] || '',
+      images: existingImages,
       is_active: p.is_active,
     });
+    setManualImageUrl('');
     setIsProductModalOpen(true);
+  };
+
+  const handleAddImage = (url: string) => {
+    if (!url || !url.trim()) return;
+    const cleanUrl = url.trim();
+    if (productForm.images.includes(cleanUrl)) {
+      toast.info('Esta foto ya está agregada');
+      return;
+    }
+    setProductForm(prev => ({
+      ...prev,
+      images: [...prev.images, cleanUrl],
+    }));
+    toast.success('Foto agregada a la galería');
+  };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+    setProductForm(prev => ({
+      ...prev,
+      images: prev.images.filter((_, idx) => idx !== indexToRemove),
+    }));
+  };
+
+  const handleSetPrimaryImage = (indexToPrimary: number) => {
+    setProductForm(prev => {
+      const selected = prev.images[indexToPrimary];
+      const rest = prev.images.filter((_, idx) => idx !== indexToPrimary);
+      return {
+        ...prev,
+        images: [selected, ...rest],
+      };
+    });
+    toast.success('Foto marcada como portada principal');
   };
 
   const handleSaveProduct = (e: React.FormEvent) => {
@@ -111,7 +162,8 @@ export default function AdminProductsPage() {
         stock: Number(productForm.stock),
         low_stock_threshold: Number(productForm.low_stock_threshold),
         description: productForm.description,
-        image: productForm.image,
+        images: productForm.images,
+        image: productForm.images[0] || '',
         is_active: productForm.is_active,
       });
     } else {
@@ -123,7 +175,8 @@ export default function AdminProductsPage() {
         stock: Number(productForm.stock),
         low_stock_threshold: Number(productForm.low_stock_threshold),
         description: productForm.description,
-        image: productForm.image,
+        images: productForm.images,
+        image: productForm.images[0] || '',
       });
     }
     setIsProductModalOpen(false);
@@ -169,7 +222,14 @@ export default function AdminProductsPage() {
   };
 
   const handleDeleteCategory = (cat: Category) => {
-    deleteCategory(cat.id);
+    const count = products.filter(p => p.category_id === cat.id).length;
+    if (count > 0) {
+      toast.error(`No se puede eliminar "${cat.name}": tiene ${count} producto(s) asignado(s). Reasigna o elimina los productos primero.`);
+      return;
+    }
+    if (confirm(`¿Estás seguro de eliminar la categoría "${cat.name}" del catálogo?`)) {
+      deleteCategory(cat.id);
+    }
   };
 
   return (
@@ -444,12 +504,116 @@ export default function AdminProductsPage() {
             </h2>
 
             <form onSubmit={handleSaveProduct} className="space-y-4">
-              <ImageUploader
-                value={productForm.image}
-                onChange={url => setProductForm({ ...productForm, image: url })}
-                label="Foto del Producto (Alojamiento Seguro en ImgBB)"
-                aspectRatio="square"
-              />
+              {/* Multi-Photo Manager Section */}
+              <div className="p-4 rounded-xl bg-[#14141A] border border-[#26262A] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-semibold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <ImageIcon size={14} className="text-[#C8A961]" />
+                      Galería de Fotos del Producto ({productForm.images.length})
+                    </label>
+                    <p className="text-[11px] text-[#6B6B72]">
+                      Sube múltiples fotos para mostrar todos los ángulos y detalles al cliente.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Storage & Optimization notice */}
+                <div className="p-2.5 rounded-lg bg-[#C8A961]/10 border border-[#C8A961]/25 text-[11px] text-[#D4D4D8] flex items-start gap-2">
+                  <span className="text-[#C8A961] font-bold shrink-0">⚡ ImgBB + Supabase:</span>
+                  <span>
+                    Las fotos se guardan en <strong>ImgBB</strong> en alta calidad y en <strong>Supabase</strong> solo se registra el enlace URL. ¡Ahorra espacio y acelera la tienda!
+                  </span>
+                </div>
+
+                {/* Existing Images Grid */}
+                {productForm.images.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
+                    {productForm.images.map((imgUrl, idx) => (
+                      <div
+                        key={idx}
+                        className={`relative group rounded-xl overflow-hidden aspect-square border ${
+                          idx === 0
+                            ? 'border-[#C8A961] ring-2 ring-[#C8A961]/30 shadow-lg'
+                            : 'border-[#26262A] bg-[#1C1C1F]'
+                        }`}
+                      >
+                        <Image
+                          src={imgUrl}
+                          alt={`Foto ${idx + 1}`}
+                          fill
+                          className="object-cover"
+                          sizes="150px"
+                        />
+                        {/* Overlay tags */}
+                        <div className="absolute top-1.5 left-1.5 z-10">
+                          {idx === 0 ? (
+                            <span className="bg-[#C8A961] text-black text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shadow">
+                              PORTADA
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSetPrimaryImage(idx)}
+                              className="bg-black/80 hover:bg-[#C8A961] text-white hover:text-black text-[9px] font-mono font-bold px-1.5 py-0.5 rounded transition shadow"
+                              title="Convertir en foto principal"
+                            >
+                              Portada
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Remove button */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(idx)}
+                          className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-full bg-red-600/90 hover:bg-red-500 text-white flex items-center justify-center shadow transition"
+                          title="Eliminar foto"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Image Uploader widget: uploading appends to images */}
+                <div className="pt-2">
+                  <ImageUploader
+                    onChange={url => handleAddImage(url)}
+                    label="Subir foto desde dispositivo a ImgBB"
+                    aspectRatio="square"
+                  />
+                </div>
+
+                {/* Direct URL input fallback */}
+                <div className="pt-1">
+                  <label className="block text-[10px] font-mono text-[#7A7A85] uppercase mb-1">
+                    O pegar enlace directo de imagen (HTTPS)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={manualImageUrl}
+                      onChange={e => setManualImageUrl(e.target.value)}
+                      placeholder="https://i.ibb.co/... o https://images.unsplash.com/..."
+                      className="flex-1 bg-[#1C1C1F] border border-[#26262A] text-xs text-white rounded-lg px-3 py-2 focus:border-[#C8A961] focus:outline-none font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (manualImageUrl.trim()) {
+                          handleAddImage(manualImageUrl.trim());
+                          setManualImageUrl('');
+                        }
+                      }}
+                      className="btn-outline-gold text-xs px-3 py-2 shrink-0"
+                    >
+                      + Añadir URL
+                    </button>
+                  </div>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-xs font-semibold text-[#A1A1AA] uppercase tracking-wider mb-1">
