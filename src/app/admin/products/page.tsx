@@ -30,7 +30,8 @@ export default function AdminProductsPage() {
   const [productForm, setProductForm] = useState({
     name: '',
     category_id: categories[0]?.id || '',
-    price: 49.99,
+    price: 250.00,
+    cost_price: 0,
     stock: 15,
     low_stock_threshold: 5,
     description: '',
@@ -67,7 +68,8 @@ export default function AdminProductsPage() {
     setProductForm({
       name: '',
       category_id: categories[0]?.id || '',
-      price: 49.99,
+      price: 250.00,
+      cost_price: 0,
       stock: 15,
       low_stock_threshold: 5,
       description: '',
@@ -83,6 +85,7 @@ export default function AdminProductsPage() {
       name: p.name,
       category_id: p.category_id || (categories[0]?.id || ''),
       price: p.price,
+      cost_price: p.cost_price ?? 0,
       stock: p.stock,
       low_stock_threshold: p.low_stock_threshold,
       description: p.description || '',
@@ -104,6 +107,7 @@ export default function AdminProductsPage() {
         name: productForm.name,
         category_id: productForm.category_id,
         price: Number(productForm.price),
+        cost_price: Number(productForm.cost_price),
         stock: Number(productForm.stock),
         low_stock_threshold: Number(productForm.low_stock_threshold),
         description: productForm.description,
@@ -115,6 +119,7 @@ export default function AdminProductsPage() {
         name: productForm.name,
         category_id: productForm.category_id,
         price: Number(productForm.price),
+        cost_price: Number(productForm.cost_price),
         stock: Number(productForm.stock),
         low_stock_threshold: Number(productForm.low_stock_threshold),
         description: productForm.description,
@@ -252,7 +257,9 @@ export default function AdminProductsPage() {
               <tr className="border-b border-[#26262A] bg-[#0E0E10] text-[#6B6B72] font-mono uppercase tracking-wider">
                 <th className="py-3.5 px-4">Producto</th>
                 <th className="py-3.5 px-4">Categoría</th>
-                <th className="py-3.5 px-4">Precio</th>
+                <th className="py-3.5 px-4">Costo</th>
+                <th className="py-3.5 px-4">Precio Venta</th>
+                <th className="py-3.5 px-4">Margen</th>
                 <th className="py-3.5 px-4">Stock</th>
                 <th className="py-3.5 px-4">Estado</th>
                 <th className="py-3.5 px-4 text-right">Acciones</th>
@@ -293,8 +300,29 @@ export default function AdminProductsPage() {
                         {product.category?.name || 'Sin categoría'}
                       </span>
                     </td>
+                    <td className="py-3 px-4 font-mono text-[#A1A1AA] text-xs">
+                      {product.cost_price && product.cost_price > 0 ? (
+                        <span className="text-[#A1A1AA]">Bs. {product.cost_price.toFixed(2)}</span>
+                      ) : (
+                        <span className="text-[#3A3A45] italic text-[10px]">no reg.</span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 font-mono font-bold text-white text-sm">
                       Bs. {product.price.toFixed(2)}
+                    </td>
+                    <td className="py-3 px-4">
+                      {product.cost_price && product.cost_price > 0 ? (
+                        <div className="flex flex-col">
+                          <span className="font-mono font-bold text-[#30A46C] text-xs">
+                            +Bs. {(product.price - product.cost_price).toFixed(2)}
+                          </span>
+                          <span className="text-[10px] text-[#6B6B72] font-mono">
+                            {Math.round(((product.price - product.cost_price) / product.price) * 100)}%
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[#3A3A45] italic text-[10px]">—</span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
@@ -457,7 +485,7 @@ export default function AdminProductsPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-[#A1A1AA] uppercase tracking-wider mb-1">
-                    Precio (Bs.) *
+                    Precio Venta (Bs.) *
                   </label>
                   <input
                     type="number"
@@ -470,6 +498,32 @@ export default function AdminProductsPage() {
                   />
                 </div>
               </div>
+
+              {/* ADMIN-ONLY: Precio de Costo */}
+              <div className="p-3 rounded-xl bg-[#C8A961]/5 border border-[#C8A961]/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[9px] font-mono font-bold text-[#C8A961] uppercase tracking-widest bg-[#C8A961]/10 px-2 py-0.5 rounded">🔒 Solo Admin</span>
+                  <span className="text-[10px] text-[#6B6B72]">No visible al público ni al chatbot</span>
+                </div>
+                <label className="block text-xs font-semibold text-[#C8A961] uppercase tracking-wider mb-1">
+                  Precio de Costo al Proveedor (Bs.)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={productForm.cost_price}
+                  onChange={e => setProductForm({ ...productForm, cost_price: parseFloat(e.target.value) || 0 })}
+                  placeholder="Ej. 1150.00 (lo que pagaste al proveedor)"
+                  className="w-full bg-[#1C1C1F] border border-[#C8A961]/30 text-xs text-white rounded-lg px-3.5 py-2.5 focus:border-[#C8A961] focus:outline-none font-mono"
+                />
+                {productForm.cost_price > 0 && productForm.price > 0 && (
+                  <div className="mt-2 text-[10px] font-mono text-[#30A46C]">
+                    Margen: Bs. {(productForm.price - productForm.cost_price).toFixed(2)} ({Math.round(((productForm.price - productForm.cost_price) / productForm.price) * 100)}% sobre precio venta)
+                  </div>
+                )}
+              </div>
+
 
               <div className="grid grid-cols-2 gap-3">
                 <div>

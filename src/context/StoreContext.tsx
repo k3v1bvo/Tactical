@@ -80,6 +80,7 @@ interface StoreContextType {
     name: string;
     description: string;
     price: number;
+    cost_price?: number;
     stock: number;
     low_stock_threshold: number;
     category_id: string;
@@ -91,6 +92,7 @@ interface StoreContextType {
       name: string;
       description: string;
       price: number;
+      cost_price: number;
       stock: number;
       low_stock_threshold: number;
       category_id: string;
@@ -415,6 +417,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     name: string;
     description: string;
     price: number;
+    cost_price?: number;
     stock: number;
     low_stock_threshold: number;
     category_id: string;
@@ -427,6 +430,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       slug: prod.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       description: prod.description,
       price: Number(prod.price),
+      cost_price: prod.cost_price !== undefined ? Number(prod.cost_price) : undefined,
       stock: Number(prod.stock),
       low_stock_threshold: Number(prod.low_stock_threshold),
       category_id: prod.category_id,
@@ -461,6 +465,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         slug: newProduct.slug,
         description: newProduct.description,
         price: newProduct.price,
+        cost_price: newProduct.cost_price ?? 0,
         category_id: newProduct.category_id,
         images: newProduct.images,
         stock: newProduct.stock,
@@ -481,6 +486,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       name: string;
       description: string;
       price: number;
+      cost_price: number;
       stock: number;
       low_stock_threshold: number;
       category_id: string;
@@ -517,6 +523,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             name: data.name !== undefined ? data.name : p.name,
             description: data.description !== undefined ? data.description : p.description,
             price: data.price !== undefined ? Number(data.price) : p.price,
+            cost_price: data.cost_price !== undefined ? Number(data.cost_price) : p.cost_price,
             stock: updatedStock,
             low_stock_threshold: updatedThreshold,
             category_id: data.category_id !== undefined ? data.category_id : p.category_id,
@@ -536,6 +543,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ...(data.name && { name: data.name }),
         ...(data.description && { description: data.description }),
         ...(data.price !== undefined && { price: data.price }),
+        ...(data.cost_price !== undefined && { cost_price: data.cost_price }),
         ...(data.stock !== undefined && { stock: data.stock }),
         ...(data.low_stock_threshold !== undefined && { low_stock_threshold: data.low_stock_threshold }),
         ...(data.category_id && { category_id: data.category_id }),
@@ -961,8 +969,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const order = orders.find(o => o.id === orderId);
     if (!order) return false;
 
-    if (order.status !== 'pending') {
-      toast.error('Solo puedes cancelar pedidos en estado "Pendiente"');
+    if (order.status !== 'pending' && order.status !== 'paid') {
+      toast.error('Solo puedes cancelar pedidos en estado "Pendiente" o "Pagado" (antes de preparación)');
       return false;
     }
 

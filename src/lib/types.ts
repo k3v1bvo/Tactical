@@ -96,7 +96,8 @@ export interface Product {
   name: string;
   slug?: string;
   description: string | null;
-  price: number;
+  price: number;           // Precio de venta al público (Bs.)
+  cost_price?: number;     // Precio de compra al proveedor — SOLO ADMIN (Bs.)
   stock: number;
   low_stock_threshold: number;
   category_id: string | null;

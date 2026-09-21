@@ -41,6 +41,82 @@ interface ChatMessage {
   };
 }
 
+/** Lightweight markdown → JSX renderer for bot messages */
+function renderMarkdown(text: string): React.ReactNode {
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+
+  lines.forEach((line, i) => {
+    const trimmed = line.trim();
+
+    // Empty line → spacer
+    if (!trimmed) {
+      elements.push(<div key={i} className="h-1.5" />);
+      return;
+    }
+
+    // Bullet point: "- texto" or "• texto"
+    if (/^[-•]\s+/.test(trimmed)) {
+      const content = trimmed.replace(/^[-•]\s+/, '');
+      elements.push(
+        <div key={i} className="flex gap-2 items-start">
+          <span className="text-[#C8A961] mt-0.5 flex-shrink-0">▪</span>
+          <span>{inlineBold(content)}</span>
+        </div>
+      );
+      return;
+    }
+
+    // Numbered list: "1. texto"
+    if (/^\d+\.\s+/.test(trimmed)) {
+      const match = trimmed.match(/^(\d+)\.\s+(.+)/);
+      if (match) {
+        elements.push(
+          <div key={i} className="flex gap-2 items-start">
+            <span className="text-[#C8A961] font-mono font-bold flex-shrink-0 min-w-[16px]">{match[1]}.</span>
+            <span>{inlineBold(match[2])}</span>
+          </div>
+        );
+        return;
+      }
+    }
+
+    // Header line: emoji + **TÍTULO** pattern
+    if (/^[^\w\s]/.test(trimmed) && /\*\*[^*]+\*\*/.test(trimmed)) {
+      elements.push(
+        <div key={i} className="font-bold text-white text-[11px] tracking-wide mt-1">
+          {inlineBold(trimmed)}
+        </div>
+      );
+      return;
+    }
+
+    // Regular line
+    elements.push(<div key={i}>{inlineBold(trimmed)}</div>);
+  });
+
+  return <>{elements}</>;
+}
+
+/** Converts **bold** and *italic* inline markup */
+function inlineBold(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={i} className="text-white font-bold">{part.slice(2, -2)}</strong>;
+        }
+        if (part.startsWith('*') && part.endsWith('*')) {
+          return <em key={i} className="text-[#C8A961]">{part.slice(1, -1)}</em>;
+        }
+        return <React.Fragment key={i}>{part}</React.Fragment>;
+      })}
+    </>
+  );
+}
+
+
 export function TacticalAIChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -326,13 +402,13 @@ export function TacticalAIChatbot() {
                 </div>
 
                 <div
-                  className={`max-w-[88%] rounded-2xl px-4 py-3 text-xs leading-relaxed whitespace-pre-line ${
+                  className={`max-w-[88%] rounded-2xl px-4 py-3 text-xs leading-relaxed space-y-1 ${
                     msg.sender === 'user'
                       ? 'bg-[#DEC07A] text-black font-semibold rounded-tr-sm shadow-[0_4px_15px_rgba(222,192,122,0.2)]'
                       : 'bg-[#121218] border border-[#22222A] text-[#F5F5F7] rounded-tl-sm shadow-md'
                   }`}
                 >
-                  {msg.text}
+                  {msg.sender === 'user' ? msg.text : renderMarkdown(msg.text)}
 
                   {/* LIVE ORDER TRACKING EMBEDDED CARD */}
                   {msg.orderInfo && (

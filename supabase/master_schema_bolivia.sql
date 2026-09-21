@@ -67,7 +67,8 @@ CREATE TABLE IF NOT EXISTS products (
   name text NOT NULL,
   slug text NOT NULL UNIQUE,
   description text,
-  price numeric(10,2) NOT NULL,              -- Precio oficial en Bolivianos (Bs.)
+  price numeric(10,2) NOT NULL,              -- Precio oficial de venta en Bolivianos (Bs.)
+  cost_price numeric(10,2) DEFAULT 0,        -- Precio de compra al proveedor (SOLO ADMIN - privado)
   category_id text REFERENCES categories(id) ON DELETE SET NULL,
   images text[] DEFAULT '{}',                 -- Array de URLs de ImgBB (la imagen real se aloja en ImgBB)
   stock integer NOT NULL DEFAULT 0,

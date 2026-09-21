@@ -93,23 +93,22 @@ export async function POST(req: Request) {
           conversationHistory.push({ role, parts: [{ text }] });
         }
 
-        // Use Gemini 3.6 Flash (fast conversational chat)
+        // Use Gemini 2.0 Flash (fast conversational chat)
         const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              systemInstruction: {
+                parts: [{ text: SYSTEM_TACTICAL_KNOWLEDGE + '\n\nFORMATO: Responde SIEMPRE en texto limpio. NO uses markdown, NO uses asteriscos (**), NO uses guiones como listas. Usa emojis para resaltar secciones. Sé breve, militar y directo.' }]
+              },
               contents: [
+                ...conversationHistory,
                 {
                   role: 'user',
-                  parts: [
-                    {
-                      text: `${SYSTEM_TACTICAL_KNOWLEDGE}\n\nInstrucción para KILO-9: Responde a la siguiente consulta del operador de forma breve, estructurada y militar, recomendando productos si aplica:\n\n${query}`,
-                    },
-                  ],
+                  parts: [{ text: query }],
                 },
-                ...conversationHistory,
               ],
               generationConfig: {
                 maxOutputTokens: 600,

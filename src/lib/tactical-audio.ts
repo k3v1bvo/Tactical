@@ -115,7 +115,11 @@ class TacticalAudioController {
     }
   }
 
-  // Order added / Success confirmation chime
+  // Order added / Success confirmation chime (alias: playSuccess)
+  public playSuccess() {
+    return this.playAddCart();
+  }
+
   public playAddCart() {
     if (!this.enabled) return;
     const ctx = this.getContext();
