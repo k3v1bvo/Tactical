@@ -46,14 +46,14 @@ export async function POST(req: Request) {
     }
 
     const transporter = host.includes('gmail')
-      ? nodemailer.createTransporter({
+      ? nodemailer.createTransport({
           service: 'gmail',
           auth: {
             user: user.trim(),
             pass: pass.replace(/\s+/g, ''),
           },
         })
-      : nodemailer.createTransporter({
+      : nodemailer.createTransport({
           host,
           port,
           secure: port === 465,

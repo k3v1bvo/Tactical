@@ -41,9 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Sync Supabase Auth session on mount
   useEffect(() => {
-    if (!supabase) return;
+    const client = supabase;
+    if (!client) return;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    client.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setAuthUser({
           id: session.user.id,
@@ -51,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: session.user.email || '',
         });
         // Check role from user_roles
-        supabase
+        client
           .from('user_roles')
           .select('role')
           .eq('user_id', session.user.id)
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = client.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setAuthUser({
           id: session.user.id,

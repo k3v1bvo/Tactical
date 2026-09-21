@@ -212,14 +212,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       }
       // Live Supabase sync
-      if (supabase) {
+      const client = supabase;
+      if (client) {
         // 1. Categories
-        supabase.from('categories').select('*').order('position', { ascending: true }).then(({ data }) => {
+        client.from('categories').select('*').order('position', { ascending: true }).then(({ data }) => {
           if (data && data.length > 0) setCategories(data);
         });
 
         // 2. Products
-        supabase.from('products').select('*').eq('is_active', true).then(({ data }) => {
+        client.from('products').select('*').eq('is_active', true).then(({ data }) => {
           if (data && data.length > 0) {
             const mappedProducts: Product[] = data.map((p: any) => ({
               id: p.id,
@@ -243,7 +244,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
 
         // 3. Shipping Zones
-        supabase.from('shipping_zones').select('*').eq('is_active', true).then(({ data }) => {
+        client.from('shipping_zones').select('*').eq('is_active', true).then(({ data }) => {
           if (data && data.length > 0) {
             setShippingZones(data.map((z: any) => ({
               ...z,
@@ -255,7 +256,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
 
         // 4. Store Settings
-        supabase.from('store_settings').select('*').eq('id', 'main').single().then(({ data }) => {
+        client.from('store_settings').select('*').eq('id', 'main').single().then(({ data }) => {
           if (data) {
             setStoreSettings({
               storeName: data.store_name || defaultStoreSettings.storeName,
@@ -452,8 +453,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setAlerts(prev => [newAlert, ...prev]);
     }
 
-    if (supabase) {
-      supabase.from('products').insert({
+    const client = supabase;
+    if (client) {
+      client.from('products').insert({
         id: newProduct.id,
         name: newProduct.name,
         slug: newProduct.slug,
@@ -528,8 +530,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })
     );
 
-    if (supabase) {
-      supabase.from('products').update({
+    const client = supabase;
+    if (client) {
+      client.from('products').update({
         ...(data.name && { name: data.name }),
         ...(data.description && { description: data.description }),
         ...(data.price !== undefined && { price: data.price }),
@@ -548,8 +551,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const deleteProduct = (id: string) => {
     setProducts(prev => prev.filter(p => p.id !== id));
-    if (supabase) {
-      supabase.from('products').delete().eq('id', id).then(({ error }) => {
+    const client = supabase;
+    if (client) {
+      client.from('products').delete().eq('id', id).then(({ error }) => {
         if (error) console.error('Error deleting product in Supabase:', error);
       });
     }
@@ -718,8 +722,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setOrders(prev => [newOrder, ...prev]);
 
     // Live Supabase sync for order
-    if (supabase) {
-      supabase
+    const client = supabase;
+    if (client) {
+      client
         .from('orders')
         .insert({
           id: newOrder.id,
@@ -749,7 +754,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         });
 
       if (newOrder.items && newOrder.items.length > 0) {
-        supabase
+        client
           .from('order_items')
           .insert(
             newOrder.items.map(item => ({
@@ -763,7 +768,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             }))
           )
           .then(({ error }) => {
-            if (error) console.error('Error inserting items in Supabase:', error);
+            if (error) console.error('Error inserting order items in Supabase:', error);
           });
       }
     }
