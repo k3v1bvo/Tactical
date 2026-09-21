@@ -30,7 +30,7 @@ export const defaultStoreSettings = {
   pickupAddress: 'Av. Heroínas #560 entre San Martín y 25 de Mayo, Zona Central, Cochabamba',
   pickupSchedule: 'Lunes a Sábado de 09:00 a 19:00 (Horario Continuo)',
   pickupInstructions: 'Presentar carnet de identidad o el código de tu orden al momento del recojo en nuestro almacén central de Cochabamba.',
-  freeGiftName: 'Souvenir Táctico Sorpresa Oficial (Edición Especial — ¡Descúbrelo al recibir tu paquete!)',
+  freeGiftName: 'Pack de Stickers Tácticos Exclusivos (Edición Especial — ¡Descúbrelos al recibir tu paquete!)',
   freeGiftValue: 35.00,
 };
 

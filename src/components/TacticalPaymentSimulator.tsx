@@ -110,10 +110,10 @@ export function TacticalPaymentSimulator() {
           </div>
           <div className="flex-1 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2 text-xs font-mono font-bold text-[#30A46C] uppercase mb-1">
-              <CheckCircle2 size={14} /> ¡SOUVENIR TÁCTICO INCLUIDO EN TU CAJA!
+              <CheckCircle2 size={14} /> ¡STICKERS TÁCTICOS INCLUIDOS EN TU CAJA!
             </div>
             <h5 className="text-base font-extrabold text-white">
-              Kit Sorpresa: Paracord Militar 550 + Parche Bordado Oficial
+               Pack de Stickers Tácticos Exclusivos
             </h5>
             <p className="text-xs text-[#A1A1AA] mt-1">
               Al pagar el 100% de tu orden por QR Simple, nuestro almacén añade automáticamente un artículo táctico coleccionable sin costo adicional.
