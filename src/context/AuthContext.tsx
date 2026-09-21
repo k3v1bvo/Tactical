@@ -180,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    // Send official welcome email via Google SMTP
+    // Send official welcome email via Google SMTP to user
     fetch('/api/notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -191,6 +191,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         message: `Estimado(a) ${fullName || 'Operador'}, tu cuenta ha sido creada con éxito en la plataforma de Tienda Táctica Cochabamba (Base Heroínas #560). Teléfono de contacto registrado: ${phone || 'Sin especificar'}. Ya puedes explorar nuestro arsenal, realizar pedidos con despacho local o envíos a toda Bolivia.`,
       }),
     }).catch(e => console.warn('Could not send welcome email:', e));
+
+    // Also alert admin about new user registration
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: 'ayniprotocol@gmail.com',
+        subject: `👤 NUEVO OPERADOR REGISTRADO: ${fullName || email}`,
+        title: 'NUEVO USUARIO EN PLATAFORMA',
+        message: `Se ha registrado una nueva cuenta en la tienda:
+• Nombre: ${fullName || 'Sin nombre'}
+• Correo: ${email}
+• Teléfono / WhatsApp: ${phone || 'No especificado'}
+• Fecha: ${new Date().toLocaleString('es-BO')}`,
+      }),
+    }).catch(e => console.warn('Could not send admin new user alert:', e));
 
     toast.success('¡Operador registrado con éxito!');
     setIsAuthModalOpen(false);

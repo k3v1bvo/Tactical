@@ -210,22 +210,64 @@ export default function CheckoutPage() {
 
       setCreatedOrder(newOrder);
 
-      // Send Order Confirmation via Google SMTP if email provided
+      // Send Notification via Google SMTP
+      const isPartial = paymentMode === 'partial_payment';
+      const isCod = paymentMode === 'cash_on_delivery';
+
+      const customerSubject = isPartial
+        ? `🛡️ Reserva Táctica Confirmada (Anticipo 50%) #${newOrder.id} — Tienda Táctica Bolivia`
+        : isCod
+        ? `📦 Pedido Contra Entrega Registrado #${newOrder.id} — Tienda Táctica Bolivia`
+        : `🎯 Venta Táctica Confirmada (Pago 100%) #${newOrder.id} — Tienda Táctica Bolivia`;
+
+      const customerTitle = isPartial
+        ? `RESERVA CONFIRMADA (50%) #${newOrder.id}`
+        : isCod
+        ? `ORDEN CONTRA ENTREGA #${newOrder.id}`
+        : `COMPRA TÁCTICA CONFIRMADA #${newOrder.id}`;
+
+      const customerMessage = isPartial
+        ? `Estimado(a) ${customerName}, tu reserva del 50% ha sido registrada con éxito en Base Cochabamba. Has abonado un anticipo de Bs. ${newOrder.paid_amount.toFixed(2)}. El saldo restante de Bs. ${newOrder.pending_amount.toFixed(2)} lo pagarás al recibir tu equipo.`
+        : isCod
+        ? `Estimado(a) ${customerName}, tu pedido ha sido registrado para pago contra entrega. Pagarás el total de Bs. ${newOrder.total.toFixed(2)} al momento de recibir el producto en mano.`
+        : `Estimado(a) ${customerName}, tu compra ha sido abonada al 100% (Bs. ${newOrder.total.toFixed(2)}). ¡Por tu pago total, hemos incluido un Souvenir Táctico Sorpresa exclusivo de regalo dentro de tu paquete con precinto de seguridad!`;
+
+      // 1. Email to Customer
       if (customerEmail && customerEmail.includes('@')) {
         fetch('/api/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: customerEmail,
-            subject: `Orden Confirmada #${newOrder.id} — Tienda Táctica Bolivia`,
-            title: `ORDEN REGISTRADA #${newOrder.id}`,
-            message: `Estimado(a) ${customerName}, tu pedido ha sido registrado con éxito en nuestro centro de comando en Cochabamba (Av. Heroínas #560). Tu paquete está en fase de preparación y precinto de seguridad.`,
+            subject: customerSubject,
+            title: customerTitle,
+            message: customerMessage,
             orderId: newOrder.id,
             total: newOrder.total,
             freeGift: newOrder.free_gift ? true : false,
           }),
         }).catch(e => console.warn('Could not send confirmation email:', e));
       }
+
+      // 2. Alert to Admin (ayniprotocol@gmail.com)
+      fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: 'ayniprotocol@gmail.com',
+          subject: `🚨 NUEVO PEDIDO: ${isPartial ? 'RESERVA (50%)' : isCod ? 'CONTRA ENTREGA' : 'VENTA (100%)'} #${newOrder.id} — Bs. ${newOrder.total.toFixed(2)}`,
+          title: `ALERTA DE DESPACHO #${newOrder.id}`,
+          message: `Nuevo pedido ingresado al centro de comando:
+• Operador / Cliente: ${customerName}
+• Celular / WhatsApp: ${customerPhone}
+• Modalidad: ${isPartial ? `Reserva 50% (Anticipo Bs. ${newOrder.paid_amount.toFixed(2)} / Saldo Bs. ${newOrder.pending_amount.toFixed(2)})` : isCod ? 'Contra Entrega' : 'Pago 100% (Con Regalo Sorpresa)'}
+• Tipo Entrega: ${deliveryType === 'pickup' ? 'Recojo en Base Cochabamba' : deliveryType === 'delivery' ? `Delivery Local (${customerAddress})` : `Envío Nacional Interdepartamental a ${selectedDepartment} (${customerAddress})`}
+• Total: Bs. ${newOrder.total.toFixed(2)}`,
+          orderId: newOrder.id,
+          total: newOrder.total,
+          freeGift: newOrder.free_gift ? true : false,
+        }),
+      }).catch(e => console.warn('Could not send admin order alert:', e));
 
       if (paymentMode === 'cash_on_delivery') {
         toast.success('¡Orden táctica registrada contra entrega!', {

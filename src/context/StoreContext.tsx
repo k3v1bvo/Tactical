@@ -895,9 +895,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ADMIN ACTIONS
   const adminSetOrderStatus = (orderId: string, status: OrderStatus, notes?: string) => {
+    let targetEmail: string | undefined;
+    let customerName: string | undefined;
+    let orderTotal: number | undefined;
+
     setOrders(prev =>
       prev.map(o => {
         if (o.id === orderId) {
+          targetEmail = o.customer_email || o.customer?.email;
+          customerName = o.customer_name || o.customer?.name;
+          orderTotal = o.total;
+
           return {
             ...o,
             status,
@@ -909,6 +917,62 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return o;
       })
     );
+
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client.from('orders').update({
+        status,
+        ...(status === 'delivered' ? { delivered_at: new Date().toISOString() } : {}),
+        ...(status === 'paid' ? { paid_at: new Date().toISOString() } : {}),
+        updated_at: new Date().toISOString(),
+      }).eq('id', orderId).then(({ error }) => {
+        if (error) console.error('Error updating order in Supabase:', error);
+      });
+    }
+
+    // Send email notification on major status transitions
+    if (targetEmail && targetEmail.includes('@')) {
+      const statusLabels: Record<string, { title: string; message: string }> = {
+        preparing: {
+          title: `ORDEN EN PREPARACIÓN #${orderId}`,
+          message: `Estimado(a) ${customerName || 'Operador'}, tu pedido táctico está siendo alistado y empacado con precintos de seguridad en nuestra base central en Cochabamba.`,
+        },
+        ready: {
+          title: `ORDEN LISTA #${orderId}`,
+          message: `Estimado(a) ${customerName || 'Operador'}, tu equipo táctico ya está 100% verificado y listo para recojo en tienda (Av. Heroínas #560) o para entrega inmediata.`,
+        },
+        in_transit: {
+          title: `PAQUETE EN RUTA #${orderId}`,
+          message: `Estimado(a) ${customerName || 'Operador'}, tu paquete va en camino. El repartidor motorizado o la flota nacional interdepartamental está en tránsito hacia tu ubicación.`,
+        },
+        delivered: {
+          title: `ORDEN ENTREGADA CON ÉXITO #${orderId}`,
+          message: `Estimado(a) ${customerName || 'Operador'}, tu equipo ha sido entregado en destino. ¡Misión cumplida! Gracias por confiar en Tienda Táctica Bolivia.`,
+        },
+        cancelled: {
+          title: `ORDEN CANCELADA #${orderId}`,
+          message: `Estimado(a) ${customerName || 'Operador'}, tu orden ha sido cancelada. Si necesitas asistencia, contáctanos por WhatsApp al +591 71234567.`,
+        },
+      };
+
+      const meta = statusLabels[status];
+      if (meta) {
+        fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: targetEmail,
+            subject: `${meta.title} — Tienda Táctica Bolivia`,
+            title: meta.title,
+            message: meta.message,
+            orderId,
+            total: orderTotal,
+          }),
+        }).catch(e => console.warn('Could not send status update notification:', e));
+      }
+    }
+
     toast.success(`Orden ${orderId.toUpperCase()} actualizada a "${status}"`);
   };
 
