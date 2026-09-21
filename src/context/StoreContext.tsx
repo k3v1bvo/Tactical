@@ -977,9 +977,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const adminAssignDriver = (orderId: string, driverId: string) => {
+    let targetOrder: Order | undefined;
+
     setOrders(prev =>
       prev.map(o => {
         if (o.id === orderId) {
+          targetOrder = o;
           return {
             ...o,
             driver_id: driverId,
@@ -990,6 +993,54 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return o;
       })
     );
+
+    if (targetOrder) {
+      const o = targetOrder;
+      // 1. Notify Driver (demoVendor.email / driver1@tacticos.bo)
+      fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: demoVendor.email,
+          subject: `🛵 NUEVA RUTA ASIGNADA #${orderId} — Comisión: Bs. ${Number(o.driver_commission).toFixed(2)}`,
+          title: `DESPACHO ASIGNADO #${orderId}`,
+          message: `Camarada conductor, tienes una nueva orden asignada:
+• Destino: ${o.customer_address}
+• Cliente: ${o.customer_name}
+• Celular / WhatsApp: ${o.customer_phone}
+• Modalidad Cobro: ${o.payment_mode === 'full_payment' ? 'PAGADO 100% (Solo entregar)' : `COBRAR SALDO: Bs. ${Number(o.pending_amount).toFixed(2)}`}
+• Tu Comisión Ganada: +Bs. ${Number(o.driver_commission).toFixed(2)}`,
+          orderId,
+          total: o.total,
+          actionUrl: '/vendor',
+          actionLabel: 'VER HOJA DE RUTA',
+          role: 'driver',
+        }),
+      }).catch(e => console.warn('Could not notify driver:', e));
+
+      // 2. Notify Client
+      if (o.customer_email && o.customer_email.includes('@')) {
+        fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: o.customer_email,
+            subject: `🛵 Repartidor Asignado a tu Orden #${orderId} — Tienda Táctica Bolivia`,
+            title: `MOTORIZADO EN CAMINO #${orderId}`,
+            message: `Estimado(a) ${o.customer_name}, tu paquete táctico ha sido asignado a nuestro conductor oficial:
+• Conductor: Carlos Chofer (Motorizado Mil-Spec)
+• Teléfono Chofer: +591 76543210
+• Modalidad: ${o.payment_mode === 'full_payment' ? 'Pagado 100%' : `Saldo a pagar al chofer: Bs. ${Number(o.pending_amount).toFixed(2)}`}`,
+            orderId,
+            total: o.total,
+            actionUrl: '/pedidos',
+            actionLabel: 'VER ESTADO DE MI ORDEN',
+            role: 'client',
+          }),
+        }).catch(e => console.warn('Could not notify client of driver assignment:', e));
+      }
+    }
+
     toast.success(`Repartidor asignado a la orden ${orderId.toUpperCase()}`);
   };
 
@@ -1041,9 +1092,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const driverInTransit = (orderId: string) => {
+    let targetOrder: Order | undefined;
+
     setOrders(prev =>
       prev.map(o => {
         if (o.id === orderId) {
+          targetOrder = o;
           return {
             ...o,
             status: 'in_transit',
@@ -1053,6 +1107,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return o;
       })
     );
+
+    // Notify Client that driver is in transit
+    if (targetOrder) {
+      const o = targetOrder;
+      if (o.customer_email && o.customer_email.includes('@')) {
+        fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: o.customer_email,
+            subject: `🛵 ¡Tu Paquete Táctico va en Camino! #${orderId} — Tienda Táctica Bolivia`,
+            title: `MOTORIZADO EN RUTA #${orderId}`,
+            message: `Estimado(a) ${o.customer_name}, el motorizado ya recogió tu paquete táctico y va en camino hacia tu dirección (${o.customer_address}). Mantente atento(a) a tu celular para la entrega inmediata.`,
+            orderId,
+            total: o.total,
+            actionUrl: '/pedidos',
+            actionLabel: 'VER RUTA DEL PEDIDO',
+            role: 'client',
+          }),
+        }).catch(e => console.warn('Could not notify client in transit:', e));
+      }
+    }
+
     toast.info(`Orden ${orderId.toUpperCase()} en camino al cliente.`);
   };
 
@@ -1093,6 +1170,47 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
 
     setDriverEarnings(prev => [newEarning, ...prev]);
+
+    // 1. Notify Client: Delivery complete
+    if (targetOrder.customer_email && targetOrder.customer_email.includes('@')) {
+      fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: targetOrder.customer_email,
+          subject: `✅ ¡Paquete Táctico Entregado con Éxito! #${orderId} — Tienda Táctica Bolivia`,
+          title: `MISIÓN CUMPLIDA #${orderId}`,
+          message: `Estimado(a) ${targetOrder.customer_name}, confirmamos que tu paquete táctico ha sido entregado en tus manos. ¡Muchas gracias por tu compra en Tienda Táctica Cochabamba! Esperamos que tu nuevo equipamiento supere todas tus expectativas.`,
+          orderId,
+          total: targetOrder.total,
+          actionUrl: '/pedidos',
+          actionLabel: 'CALIFICAR ENTREGA',
+          role: 'client',
+        }),
+      }).catch(e => console.warn('Could not notify client of delivery:', e));
+    }
+
+    // 2. Alert Admin: Delivery completed and funds collected
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: 'ayniprotocol@gmail.com',
+        subject: `💰 ENTREGA COMPLETADA #${orderId} — Total: Bs. ${Number(targetOrder.total).toFixed(2)}`,
+        title: `ENTREGA Y COBRO FINALIZADO #${orderId}`,
+        message: `El repartidor ha completado con éxito la entrega #${orderId}:
+• Cliente: ${targetOrder.customer_name}
+• Total Orden: Bs. ${Number(targetOrder.total).toFixed(2)}
+• Comisión Chofer: Bs. ${Number(targetOrder.driver_commission).toFixed(2)}
+• Ganancia Neta Tienda: Bs. ${(Number(targetOrder.total) - Number(targetOrder.driver_commission)).toFixed(2)}
+• Fecha y Hora: ${new Date(deliveryTime).toLocaleString('es-BO')}`,
+        orderId,
+        total: targetOrder.total,
+        actionUrl: '/admin/orders',
+        actionLabel: 'PANEL DE ÓRDENES ADMIN',
+        role: 'admin',
+      }),
+    }).catch(e => console.warn('Could not alert admin of delivery:', e));
 
     toast.success(`¡Entrega de orden ${orderId.toUpperCase()} completada!`, {
       description: `Comisión registrada: +Bs. ${targetOrder.driver_commission.toFixed(2)}`,
