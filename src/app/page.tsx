@@ -205,12 +205,14 @@ export default function HomePage() {
   };
 
   const categoryImages: Record<string, string> = {
-    'cat-01': 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=80',
-    'cat-02': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop&q=80',
-    'cat-03': 'https://images.unsplash.com/photo-1595590424283-b8f17842773f?w=800&auto=format&fit=crop&q=80',
-    'cat-04': 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&auto=format&fit=crop&q=80',
-    'cat-05': 'https://images.unsplash.com/photo-1589182373726-e4f658ab50f0?w=800&auto=format&fit=crop&q=80',
-    'cat-06': 'https://images.unsplash.com/photo-1593784991095-a205069470b6?w=800&auto=format&fit=crop&q=80',
+    'cat-01': 'https://images.unsplash.com/photo-1784612207661-f0deb9ce0223?w=800&auto=format&fit=crop&q=80',
+    'cat-02': 'https://images.unsplash.com/photo-1601175750527-88def4365509?w=800&auto=format&fit=crop&q=80',
+    'cat-03': 'https://images.unsplash.com/photo-1784612212663-716f0518783d?w=800&auto=format&fit=crop&q=80',
+    'cat-04': 'https://images.unsplash.com/photo-1707264848832-a1de98edb85c?w=800&auto=format&fit=crop&q=80',
+    'cat-05': 'https://images.unsplash.com/photo-1566566716921-b50e82140547?w=800&auto=format&fit=crop&q=80',
+    'cat-06': 'https://images.unsplash.com/photo-1773875342538-a45969eb78e5?w=800&auto=format&fit=crop&q=80',
+    'cat-07': 'https://images.unsplash.com/photo-1576420469891-b303889e81bf?w=800&auto=format&fit=crop&q=80',
+    'cat-08': 'https://images.unsplash.com/photo-1776687773939-348819a9b787?w=800&auto=format&fit=crop&q=80',
   };
 
   return (
@@ -503,7 +505,7 @@ export default function HomePage() {
               const count = products.filter((p) => p.category_id === cat.id).length;
               const bgImg =
                 categoryImages[cat.id] ||
-                'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=80';
+                'https://images.unsplash.com/photo-1784612207661-f0deb9ce0223?w=800&auto=format&fit=crop&q=80';
 
               return (
                 <div
@@ -911,7 +913,7 @@ export default function HomePage() {
 
                 <div className="lg:col-span-5 relative aspect-square rounded-2xl overflow-hidden border border-[#22222A] bg-[#0A0A0D] group">
                   <Image
-                    src={flagshipProduct.images[0] || 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=80'}
+                    src={flagshipProduct.images[0] || 'https://images.unsplash.com/photo-1784612207661-f0deb9ce0223?w=800&auto=format&fit=crop&q=80'}
                     alt={flagshipProduct.name}
                     fill
                     className="object-cover group-hover:scale-108 transition-transform duration-700"

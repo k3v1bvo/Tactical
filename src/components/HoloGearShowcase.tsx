@@ -39,8 +39,8 @@ export function HoloGearShowcase({ products }: HoloGearShowcaseProps) {
       title: 'Plate Carrier Nivel IV',
       category: 'Protección Balística',
       spec: 'STANAG 4569 · Nivel IV Cerámica',
-      price: 'Bs. 289.99',
-      image: 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=80',
+      price: 'Bs. 340.00',
+      image: 'https://images.unsplash.com/photo-1784612207661-f0deb9ce0223?w=800&auto=format&fit=crop&q=80',
       productRef: products.find(p => p.id === 'prod-01') || products[0],
       hotspots: [
         { id: 'h1', x: 50, y: 35, title: 'Panel Balístico NIJ-IV', tag: 'CERÁMICA + PE', desc: 'Detención múltiple impacto calibre 7.62x51mm OTAN.', stat: '99.4% ABSORCIÓN' },
@@ -52,8 +52,8 @@ export function HoloGearShowcase({ products }: HoloGearShowcaseProps) {
       title: 'Mira Holográfica EOTech XPS3',
       category: 'Óptica de Precisión',
       spec: 'Punto Rojo 68 MOA · Sumergible 10m',
-      price: 'Bs. 599.99',
-      image: 'https://images.unsplash.com/photo-1595590424283-b8f17842773f?w=800&auto=format&fit=crop&q=80',
+      price: 'Bs. 380.00',
+      image: 'https://images.unsplash.com/photo-1784612212663-716f0518783d?w=800&auto=format&fit=crop&q=80',
       productRef: products.find(p => p.id === 'prod-03') || products[2] || products[0],
       hotspots: [
         { id: 'h4', x: 50, y: 40, title: 'Lente Espectral Antirreflejo', tag: 'ÓPTICA NVG', desc: 'Retícula nítida sin paralaje compatible con visores nocturnos.', stat: '100% TRANSMISIÓN' },
@@ -64,8 +64,8 @@ export function HoloGearShowcase({ products }: HoloGearShowcaseProps) {
       title: 'Botas Tácticas Desert Storm',
       category: 'Calzado Táctico',
       spec: 'Suela Vibram · Membrana Gore-Tex',
-      price: 'Bs. 179.99',
-      image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&auto=format&fit=crop&q=80',
+      price: 'Bs. 310.00',
+      image: 'https://images.unsplash.com/photo-1601175750527-88def4365509?w=800&auto=format&fit=crop&q=80',
       productRef: products.find(p => p.id === 'prod-02') || products[1] || products[0],
       hotspots: [
         { id: 'h6', x: 45, y: 38, title: 'Cuero Hidrofugado 2.2mm', tag: 'GORE-TEX MEMBRANE', desc: 'Impermeabilidad total y respirabilidad en marcha forzada.', stat: '100% WATERPROOF' },

@@ -62,7 +62,7 @@ export function TiltProductCard({ product }: TiltProductCardProps) {
     });
   };
 
-  const imgUrl = product.images?.[0] || 'https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=80';
+  const imgUrl = product.images?.[0] || 'https://images.unsplash.com/photo-1784612207661-f0deb9ce0223?w=800&auto=format&fit=crop&q=80';
 
   return (
     <div

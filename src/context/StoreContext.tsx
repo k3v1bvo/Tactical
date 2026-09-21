@@ -152,14 +152,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Load from localStorage on mount
   useEffect(() => {
     try {
+      const CURRENT_CATALOG_VERSION = 'v3_tactical_complete_bolivia';
+      const savedVersion = localStorage.getItem('tacticos_catalog_version');
+
       const savedCats = localStorage.getItem('tacticos_store_categories');
-      if (savedCats) setCategories(JSON.parse(savedCats));
+      if (savedCats && savedVersion === CURRENT_CATALOG_VERSION) {
+        setCategories(JSON.parse(savedCats));
+      } else {
+        setCategories(demoCategories);
+        localStorage.setItem('tacticos_store_categories', JSON.stringify(demoCategories));
+      }
 
       const savedProds = localStorage.getItem('tacticos_store_products');
-      if (savedProds) setProducts(JSON.parse(savedProds));
+      if (savedProds && savedVersion === CURRENT_CATALOG_VERSION) {
+        setProducts(JSON.parse(savedProds));
+      } else {
+        setProducts(demoProducts);
+        localStorage.setItem('tacticos_store_products', JSON.stringify(demoProducts));
+        localStorage.setItem('tacticos_catalog_version', CURRENT_CATALOG_VERSION);
+      }
 
       const savedAlerts = localStorage.getItem('tacticos_store_alerts');
-      if (savedAlerts) setAlerts(JSON.parse(savedAlerts));
+      if (savedAlerts && savedVersion === CURRENT_CATALOG_VERSION) {
+        setAlerts(JSON.parse(savedAlerts));
+      } else {
+        setAlerts(demoAlerts);
+        localStorage.setItem('tacticos_store_alerts', JSON.stringify(demoAlerts));
+      }
 
       const savedOrders = localStorage.getItem('tacticos_store_orders');
       if (savedOrders) {
@@ -230,8 +249,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               slug: p.slug,
               description: p.description || '',
               price: parseFloat(p.price) || 0,
+              cost_price: p.cost_price ? parseFloat(p.cost_price) : undefined,
               category_id: p.category_id,
-              images: Array.isArray(p.images) && p.images.length > 0 ? p.images : ['https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=80'],
+              images: Array.isArray(p.images) && p.images.length > 0 ? p.images : ['https://images.unsplash.com/photo-1784612207661-f0deb9ce0223?w=800&auto=format&fit=crop&q=80'],
               stock: p.stock ?? 0,
               low_stock_threshold: p.low_stock_threshold ?? 5,
               sku: p.sku || '',
@@ -435,7 +455,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       low_stock_threshold: Number(prod.low_stock_threshold),
       category_id: prod.category_id,
       category: categoryObj,
-      images: prod.image ? [prod.image] : ['https://images.unsplash.com/photo-1579829366248-204fe8413f31?w=800&auto=format&fit=crop&q=60'],
+      images: prod.image ? [prod.image] : ['https://images.unsplash.com/photo-1784612207661-f0deb9ce0223?w=800&auto=format&fit=crop&q=80'],
       is_active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
