@@ -197,6 +197,23 @@ export default function CheckoutPage() {
 
       setCreatedOrder(newOrder);
 
+      // Send Order Confirmation via Google SMTP if email provided
+      if (customerEmail && customerEmail.includes('@')) {
+        fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: customerEmail,
+            subject: `Orden Confirmada #${newOrder.id} — Tienda Táctica Bolivia`,
+            title: `ORDEN REGISTRADA #${newOrder.id}`,
+            message: `Estimado(a) ${customerName}, tu pedido ha sido registrado con éxito en nuestro centro de comando en Cochabamba (Av. Heroínas #560). Tu paquete está en fase de preparación y precinto de seguridad.`,
+            orderId: newOrder.id,
+            total: newOrder.total,
+            freeGift: newOrder.free_gift ? true : false,
+          }),
+        }).catch(e => console.warn('Could not send confirmation email:', e));
+      }
+
       if (paymentMode === 'cash_on_delivery') {
         toast.success('¡Orden táctica registrada contra entrega!', {
           description: `Pagarás Bs. ${grandTotal.toFixed(2)} al momento de recibir.`,
