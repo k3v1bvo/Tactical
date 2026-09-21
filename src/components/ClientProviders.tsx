@@ -4,6 +4,7 @@ import { StoreProvider } from '@/context/StoreContext';
 import { CartProvider } from '@/context/CartContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { TacticalAIChatbot } from '@/components/TacticalAIChatbot';
+import { AuthModal } from '@/components/AuthModal';
 import { Toaster } from 'sonner';
 
 export function ClientProviders({ children }: { children: React.ReactNode }) {
@@ -12,6 +13,7 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <CartProvider>
           {children}
+          <AuthModal />
           <TacticalAIChatbot />
           <Toaster
             position="top-right"

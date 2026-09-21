@@ -7,7 +7,6 @@ import { ShoppingCart, Menu, X, Shield, Bell, ChevronDown, Compass, Package, Shi
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useStore } from '@/context/StoreContext';
-import { AuthModal } from '@/components/AuthModal';
 import type { AppRole } from '@/lib/types';
 
 export function Navbar() {
@@ -307,9 +306,6 @@ export function Navbar() {
           }}
         />
       )}
-
-      {/* Tactical Authentication Modal */}
-      <AuthModal />
     </nav>
   );
 }

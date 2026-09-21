@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Shield, Lock, Mail, User, X, CheckCircle2, ArrowRight, Radio, Key } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Shield, Lock, Mail, User, X, CheckCircle2, ArrowRight, Key, Sparkles } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { tacticalAudio } from '@/lib/tactical-audio';
 import type { AppRole } from '@/lib/types';
@@ -26,6 +26,27 @@ export function AuthModal() {
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Close on Escape key and prevent background scroll
+  useEffect(() => {
+    if (!isAuthModalOpen) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        tacticalAudio.playBlip();
+        closeAuthModal();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAuthModalOpen, closeAuthModal]);
+
   if (!isAuthModalOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,182 +69,214 @@ export function AuthModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in">
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 overflow-y-auto overscroll-contain bg-black/85 backdrop-blur-2xl animate-fade-in transition-all"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          tacticalAudio.playBlip();
+          closeAuthModal();
+        }
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+    >
+      {/* Centered Modal Card: Flawlessly centered on PC, Tablet, and Mobile */}
       <div
-        className="relative w-full max-w-md rounded-3xl border border-[#C8A961]/30 bg-[#0c0c10] p-7 shadow-2xl overflow-hidden"
-        style={{
-          boxShadow: '0 25px 80px rgba(0,0,0,0.8), 0 0 40px rgba(200, 169, 97, 0.15)',
-        }}
+        className="relative w-full max-w-[440px] my-auto rounded-3xl border border-[#C8A961]/35 bg-[#0B0B10]/98 text-left shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_50px_rgba(200,169,97,0.18)] max-h-[92dvh] flex flex-col overflow-hidden"
+        style={{ transform: 'translateZ(0)' }}
       >
         {/* Top laser accent line */}
         <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#C8A961] to-transparent" />
 
-        {/* Close button */}
-        <button
-          onClick={closeAuthModal}
-          className="absolute top-5 right-5 p-2 rounded-xl bg-[#14141a] border border-[#22222A] text-[#7A7A85] hover:text-white hover:border-[#C8A961]/40 transition-colors"
-        >
-          <X size={16} />
-        </button>
-
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-11 h-11 rounded-xl bg-[#C8A961]/15 border border-[#C8A961]/30 flex items-center justify-center text-[#C8A961]">
-            <Shield size={22} />
-          </div>
-          <div>
-            <div className="text-[10px] font-mono text-[#C8A961] tracking-widest uppercase font-bold">
-              AUTENTICACIÓN SUPABASE
+        {/* Modal Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-[#22222A] bg-gradient-to-b from-[#14141C] to-[#0B0B10] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#C8A961]/15 border border-[#C8A961]/30 flex items-center justify-center text-[#C8A961] shadow-inner">
+              <Shield size={20} />
             </div>
-            <h3 className="text-xl font-extrabold text-white uppercase tracking-tight">
-              PORTAL DE ACCESO TÁCTICO
-            </h3>
+            <div>
+              <div className="text-[9px] font-mono text-[#C8A961] tracking-widest uppercase font-bold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#30A46C] animate-pulse" />
+                ACCESO SEGURO MIL-SPEC
+              </div>
+              <h3 id="auth-modal-title" className="text-base sm:text-lg font-extrabold text-white uppercase tracking-tight">
+                PORTAL DE OPERADORES
+              </h3>
+            </div>
           </div>
+
+          <button
+            onClick={() => {
+              tacticalAudio.playBlip();
+              closeAuthModal();
+            }}
+            aria-label="Cerrar modal"
+            className="w-10 h-10 rounded-xl bg-[#14141A] border border-[#22222A] text-[#7A7A85] hover:text-white hover:border-[#C8A961]/40 flex items-center justify-center transition-colors"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        {/* If user is already logged in, show status & logout */}
-        {isLoggedIn ? (
-          <div className="space-y-4 py-2">
-            <div className="p-4 rounded-2xl bg-[#30A46C]/10 border border-[#30A46C]/25 text-left">
-              <div className="flex items-center gap-2 text-xs font-mono text-[#30A46C] font-bold mb-1">
-                <CheckCircle2 size={15} /> OPERADOR AUTENTICADO
+        {/* Modal Scrollable Body */}
+        <div className="p-5 sm:p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
+          {/* If user is already logged in */}
+          {isLoggedIn ? (
+            <div className="space-y-4 py-2">
+              <div className="p-4 rounded-2xl bg-[#30A46C]/10 border border-[#30A46C]/25 text-left">
+                <div className="flex items-center gap-2 text-xs font-mono text-[#30A46C] font-bold mb-1">
+                  <CheckCircle2 size={16} /> OPERADOR AUTENTICADO
+                </div>
+                <div className="text-sm font-bold text-white">{userName}</div>
+                <div className="text-xs text-[#7A7A85] font-mono">{userEmail}</div>
+                <div className="mt-2 text-[10px] font-mono text-[#C8A961] uppercase">
+                  ROL ASIGNADO: <strong className="text-white">{role.toUpperCase()}</strong>
+                </div>
               </div>
-              <div className="text-sm font-bold text-white">{userName}</div>
-              <div className="text-xs text-[#7A7A85] font-mono">{userEmail}</div>
-              <div className="mt-2 text-[10px] font-mono text-[#C8A961] uppercase">
-                ROL: <strong>{role.toUpperCase()}</strong>
-              </div>
-            </div>
 
-            <button
-              onClick={() => {
-                signOut();
-                closeAuthModal();
-              }}
-              className="btn-outline-gold w-full text-xs py-3"
-            >
-              CERRAR SESIÓN
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Tabs */}
-            <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#14141a] border border-[#22222A] mb-5 font-mono text-xs">
               <button
-                type="button"
-                onClick={() => setTab('login')}
-                className={`py-2 rounded-lg font-bold transition-all ${
-                  tab === 'login'
-                    ? 'bg-[#C8A961] text-black shadow-md'
-                    : 'text-[#7A7A85] hover:text-white'
-                }`}
+                onClick={() => {
+                  signOut();
+                  closeAuthModal();
+                }}
+                className="btn-outline-gold w-full min-h-[48px] text-xs font-bold py-3 flex items-center justify-center"
               >
-                INICIAR SESIÓN
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab('register')}
-                className={`py-2 rounded-lg font-bold transition-all ${
-                  tab === 'register'
-                    ? 'bg-[#C8A961] text-black shadow-md'
-                    : 'text-[#7A7A85] hover:text-white'
-                }`}
-              >
-                REGISTRO
+                CERRAR SESIÓN DEL DISPOSITIVO
               </button>
             </div>
+          ) : (
+            <>
+              {/* Tab Switcher */}
+              <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-[#121218] border border-[#22222A] font-mono text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    tacticalAudio.playBlip();
+                    setTab('login');
+                  }}
+                  className={`min-h-[42px] rounded-xl font-bold transition-all ${
+                    tab === 'login'
+                      ? 'bg-[#C8A961] text-black shadow-md'
+                      : 'text-[#7A7A85] hover:text-white'
+                  }`}
+                >
+                  INICIAR SESIÓN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    tacticalAudio.playBlip();
+                    setTab('register');
+                  }}
+                  className={`min-h-[42px] rounded-xl font-bold transition-all ${
+                    tab === 'register'
+                      ? 'bg-[#C8A961] text-black shadow-md'
+                      : 'text-[#7A7A85] hover:text-white'
+                  }`}
+                >
+                  REGISTRO
+                </button>
+              </div>
 
-            {/* Auth Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {tab === 'register' && (
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {tab === 'register' && (
+                  <div>
+                    <label className="block text-[10px] font-mono text-[#A1A1AA] uppercase mb-1.5 font-semibold">
+                      NOMBRE COMPLETO
+                    </label>
+                    <div className="relative">
+                      <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7A7A85]" />
+                      <input
+                        type="text"
+                        required
+                        autoComplete="name"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        placeholder="Ej. Roberto Vargas"
+                        className="w-full min-h-[48px] bg-[#14141C] border border-[#262632] text-xs text-white rounded-xl pl-10 pr-4 py-3 focus:border-[#C8A961] focus:ring-1 focus:ring-[#C8A961]/40 focus:outline-none font-sans transition-colors"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-[10px] font-mono text-[#7A7A85] uppercase mb-1">
-                    NOMBRE COMPLETO
+                  <label className="block text-[10px] font-mono text-[#A1A1AA] uppercase mb-1.5 font-semibold">
+                    CORREO ELECTRÓNICO
                   </label>
                   <div className="relative">
-                    <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5E5E68]" />
+                    <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7A7A85]" />
                     <input
-                      type="text"
+                      type="email"
                       required
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Ej. Roberto Vargas"
-                      className="w-full bg-[#14141a] border border-[#22222A] text-xs text-white rounded-xl pl-10 pr-4 py-3 focus:border-[#C8A961]/50 focus:outline-none font-mono"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="operador@tacticos.bo"
+                      className="w-full min-h-[48px] bg-[#14141C] border border-[#262632] text-xs text-white rounded-xl pl-10 pr-4 py-3 focus:border-[#C8A961] focus:ring-1 focus:ring-[#C8A961]/40 focus:outline-none font-sans transition-colors"
                     />
                   </div>
                 </div>
-              )}
 
-              <div>
-                <label className="block text-[10px] font-mono text-[#7A7A85] uppercase mb-1">
-                  CORREO ELECTRÓNICO
-                </label>
-                <div className="relative">
-                  <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5E5E68]" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="operador@tacticos.bo"
-                    className="w-full bg-[#14141a] border border-[#22222A] text-xs text-white rounded-xl pl-10 pr-4 py-3 focus:border-[#C8A961]/50 focus:outline-none font-mono"
-                  />
+                <div>
+                  <label className="block text-[10px] font-mono text-[#A1A1AA] uppercase mb-1.5 font-semibold">
+                    CONTRASEÑA
+                  </label>
+                  <div className="relative">
+                    <Key size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7A7A85]" />
+                    <input
+                      type="password"
+                      required
+                      autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full min-h-[48px] bg-[#14141C] border border-[#262632] text-xs text-white rounded-xl pl-10 pr-4 py-3 focus:border-[#C8A961] focus:ring-1 focus:ring-[#C8A961]/40 focus:outline-none font-sans transition-colors"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-[10px] font-mono text-[#7A7A85] uppercase mb-1">
-                  CONTRASEÑA CIFRADA
-                </label>
-                <div className="relative">
-                  <Key size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#5E5E68]" />
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full bg-[#14141a] border border-[#22222A] text-xs text-white rounded-xl pl-10 pr-4 py-3 focus:border-[#C8A961]/50 focus:outline-none font-mono"
-                  />
-                </div>
-              </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-tactical w-full min-h-[48px] text-xs font-bold py-3.5 mt-2 flex items-center justify-center gap-2 shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-transform"
+                >
+                  <span>{loading ? 'VERIFICANDO ENLACE...' : tab === 'login' ? 'INGRESAR AL SISTEMA' : 'CREAR CUENTA MILITAR'}</span>
+                  <ArrowRight size={14} />
+                </button>
+              </form>
+            </>
+          )}
 
+          {/* Quick Demo Switcher */}
+          <div className="pt-4 border-t border-[#22222A]">
+            <div className="text-[10px] font-mono text-[#7A7A85] uppercase text-center mb-2.5 flex items-center justify-center gap-1.5">
+              <Sparkles size={11} className="text-[#C8A961]" />
+              <span>CAMBIO DE ROL INMEDIATO (MODO SIMULADOR)</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
               <button
-                type="submit"
-                disabled={loading}
-                className="btn-tactical w-full text-xs py-3.5 mt-2 flex items-center justify-center gap-2 shadow-xl"
+                type="button"
+                onClick={() => handleDemoSwitch('admin')}
+                className="min-h-[42px] px-2 py-2 rounded-xl bg-[#14141C] border border-[#E5484D]/30 hover:border-[#E5484D] text-[#E5484D] text-[10px] font-mono font-bold transition-all hover:bg-[#E5484D]/10"
               >
-                <span>{loading ? 'AUTENTICANDO...' : tab === 'login' ? 'INGRESAR AL SISTEMA' : 'CREAR CUENTA'}</span>
-                <ArrowRight size={14} />
+                ADMIN
               </button>
-            </form>
-          </>
-        )}
-
-        {/* Quick Demo Operator Roles (For Instant Testing) */}
-        <div className="mt-6 pt-5 border-t border-[#22222A]">
-          <div className="text-[10px] font-mono text-[#5E5E68] uppercase text-center mb-3">
-            ACCESO RÁPIDO DE PRUEBA (CAMBIO DE ROL INMEDIATO)
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => handleDemoSwitch('admin')}
-              className="px-2 py-2 rounded-xl bg-[#14141a] border border-[#E5484D]/30 hover:border-[#E5484D] text-[#E5484D] text-[10px] font-mono font-bold transition-colors"
-            >
-              ADMIN
-            </button>
-            <button
-              onClick={() => handleDemoSwitch('vendor')}
-              className="px-2 py-2 rounded-xl bg-[#14141a] border border-[#3b82f6]/30 hover:border-[#3b82f6] text-[#3b82f6] text-[10px] font-mono font-bold transition-colors"
-            >
-              CHOFER MOTO
-            </button>
-            <button
-              onClick={() => handleDemoSwitch('client')}
-              className="px-2 py-2 rounded-xl bg-[#14141a] border border-[#30A46C]/30 hover:border-[#30A46C] text-[#30A46C] text-[10px] font-mono font-bold transition-colors"
-            >
-              CLIENTE
-            </button>
+              <button
+                type="button"
+                onClick={() => handleDemoSwitch('vendor')}
+                className="min-h-[42px] px-2 py-2 rounded-xl bg-[#14141C] border border-[#3b82f6]/30 hover:border-[#3b82f6] text-[#3b82f6] text-[10px] font-mono font-bold transition-all hover:bg-[#3b82f6]/10"
+              >
+                CHOFER MOTO
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDemoSwitch('client')}
+                className="min-h-[42px] px-2 py-2 rounded-xl bg-[#14141C] border border-[#30A46C]/30 hover:border-[#30A46C] text-[#30A46C] text-[10px] font-mono font-bold transition-all hover:bg-[#30A46C]/10"
+              >
+                CLIENTE
+              </button>
+            </div>
           </div>
         </div>
       </div>
