@@ -151,7 +151,7 @@ export default function CheckoutPage() {
     return null;
   }
 
-  const handleSubmitOrder = (e: React.FormEvent) => {
+  const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!customerName.trim()) {
@@ -179,7 +179,7 @@ export default function CheckoutPage() {
         subtotal: item.product.price * item.quantity,
       }));
 
-      const newOrder = createOrder({
+      const newOrder = await createOrder({
         customer_name: customerName.trim(),
         customer_phone: customerPhone.trim().startsWith('+') ? customerPhone.trim() : `+591 ${customerPhone.trim()}`,
         customer_email: customerEmail.trim() || undefined,

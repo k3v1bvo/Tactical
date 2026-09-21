@@ -117,7 +117,7 @@ interface StoreContextType {
   resetShippingZonesToDefaults: () => void;
 
   // Order Lifecycle & Logistics
-  createOrder: (input: CreateOrderInput) => Order;
+  createOrder: (input: CreateOrderInput) => Promise<Order>;
   adminSetOrderStatus: (orderId: string, status: OrderStatus, notes?: string) => void;
   adminAssignDriver: (orderId: string, driverId: string) => void;
   driverAcceptOrder: (orderId: string, driverId?: string) => boolean;
@@ -633,7 +633,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   // ORDER CREATION & LOGISTICS (BOLIVIA - 3 DELIVERY TYPES + 50/50 + REGALO TÁCTICO)
-  const createOrder = (input: CreateOrderInput): Order => {
+  const createOrder = async (input: CreateOrderInput): Promise<Order> => {
     let shippingCost = 0;
     let driverCommission = 0;
     let selectedZone: ShippingZone | undefined = undefined;
@@ -677,9 +677,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // Orders are considered 'paid' (confirmed) if advance was paid or if confirmed by client
     const initialStatus: OrderStatus = 'paid';
 
+    // Obtener el UUID real del usuario autenticado en Supabase
+    let realUserId: string | null = null;
+    try {
+      const client = supabase;
+      if (client) {
+        const { data: { user } } = await client.auth.getUser();
+        realUserId = user?.id ?? null;
+      }
+    } catch {
+      // Sin sesión activa — orden anónima, customer_id será null
+    }
+
     const newOrder: Order = {
       id: orderId,
-      user_id: 'client-01',
+      user_id: realUserId || 'guest',
       vendor_id: null,
       driver_id: null,
       shipping_zone_id: input.shipping_zone_id || null,
@@ -736,6 +748,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .from('orders')
         .insert({
           id: newOrder.id,
+          customer_id: realUserId || undefined,  // UUID real de Supabase Auth (null si anónimo)
           status: newOrder.status,
           subtotal: Number(input.subtotal),
           total: Number(newOrder.total),
