@@ -227,7 +227,7 @@ export default function CheckoutPage() {
         : `COMPRA TÁCTICA CONFIRMADA #${newOrder.id}`;
 
       const customerMessage = isPartial
-        ? `Estimado(a) ${customerName}, tu reserva del 50% ha sido registrada con éxito en Base Cochabamba. Has abonado un anticipo de Bs. ${newOrder.paid_amount.toFixed(2)}. El saldo restante de Bs. ${newOrder.pending_amount.toFixed(2)} lo pagarás al recibir tu equipo.`
+        ? `Estimado(a) ${customerName}, tu reserva del 50% ha sido registrada con éxito en Base Cochabamba. Has abonado un anticipo de Bs. ${(newOrder.paid_amount || 0).toFixed(2)}. El saldo restante de Bs. ${(newOrder.pending_amount || 0).toFixed(2)} lo pagarás al recibir tu equipo.`
         : isCod
         ? `Estimado(a) ${customerName}, tu pedido ha sido registrado para pago contra entrega. Pagarás el total de Bs. ${newOrder.total.toFixed(2)} al momento de recibir el producto en mano.`
         : `Estimado(a) ${customerName}, tu compra ha sido abonada al 100% (Bs. ${newOrder.total.toFixed(2)}). ¡Por tu pago total, hemos incluido un Souvenir Táctico Sorpresa exclusivo de regalo dentro de tu paquete con precinto de seguridad!`;
@@ -260,7 +260,7 @@ export default function CheckoutPage() {
           message: `Nuevo pedido ingresado al centro de comando:
 • Operador / Cliente: ${customerName}
 • Celular / WhatsApp: ${customerPhone}
-• Modalidad: ${isPartial ? `Reserva 50% (Anticipo Bs. ${newOrder.paid_amount.toFixed(2)} / Saldo Bs. ${newOrder.pending_amount.toFixed(2)})` : isCod ? 'Contra Entrega' : 'Pago 100% (Con Regalo Sorpresa)'}
+• Modalidad: ${isPartial ? `Reserva 50% (Anticipo Bs. ${(newOrder.paid_amount || 0).toFixed(2)} / Saldo Bs. ${(newOrder.pending_amount || 0).toFixed(2)})` : isCod ? 'Contra Entrega' : 'Pago 100% (Con Regalo Sorpresa)'}
 • Tipo Entrega: ${deliveryType === 'pickup' ? 'Recojo en Base Cochabamba' : deliveryType === 'delivery' ? `Delivery Local (${customerAddress})` : `Envío Nacional Interdepartamental a ${selectedDepartment} (${customerAddress})`}
 • Total: Bs. ${newOrder.total.toFixed(2)}`,
           orderId: newOrder.id,
