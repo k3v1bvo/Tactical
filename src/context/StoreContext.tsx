@@ -11,6 +11,8 @@ import type {
   OrderStatus,
   DeliveryType,
   PaymentMode,
+  CashSettlement,
+  CashSettlementMethod,
 } from '@/lib/types';
 import {
   demoCategories,
@@ -66,6 +68,7 @@ interface StoreContextType {
   driverEarnings: DriverEarning[];
   isDriverAvailable: boolean;
   storeSettings: StoreSettings;
+  cashSettlements: CashSettlement[];
 
   // Store Settings (Admin)
   updateStoreSettings: (settings: Partial<StoreSettings>) => void;
@@ -133,6 +136,11 @@ interface StoreContextType {
   toggleDriverAvailability: () => void;
   settleDriverEarnings: (earningId: string) => void;
 
+  // Cash Settlement (driver returns collected cash)
+  getDriverCashOwed: (driverId: string) => number;
+  submitCashSettlement: (driverId: string, driverName: string, amount: number, method: CashSettlementMethod, orderIds: string[], proofUrl?: string, notes?: string) => void;
+  reviewCashSettlement: (settlementId: string, approved: boolean, reviewerName?: string) => void;
+
   // Alerts & Maintenance
   resolveAlert: (id: string) => void;
   resetToDefaults: () => void;
@@ -149,6 +157,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [driverEarnings, setDriverEarnings] = useState<DriverEarning[]>(demoDriverEarnings);
   const [isDriverAvailable, setIsDriverAvailable] = useState<boolean>(true);
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
+  const [cashSettlements, setCashSettlements] = useState<CashSettlement[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Load from localStorage on mount
@@ -234,6 +243,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           setStoreSettings(parsedSettings);
         }
       }
+
+      const savedSettlements = localStorage.getItem('tacticos_cash_settlements');
+      if (savedSettlements) setCashSettlements(JSON.parse(savedSettlements));
+
       // Live Supabase sync
       const client = supabase;
       if (client) {
@@ -1275,6 +1288,90 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     toast.success('Comisión de reparto liquidada con éxito');
   };
 
+  // ============ CASH SETTLEMENT SYSTEM ============
+  const getDriverCashOwed = (driverId: string): number => {
+    // Sum of cash collected on delivery orders that haven't been settled
+    const deliveredCashOrders = orders.filter(
+      o => o.status === 'delivered' &&
+           (o.driver_id === driverId || driverId === 'vendor-01') &&
+           (o.payment_mode === 'cash_on_delivery' || o.payment_mode === 'partial_payment')
+    );
+    const totalCollected = deliveredCashOrders.reduce((acc, o) => {
+      if (o.payment_mode === 'cash_on_delivery') return acc + o.total;
+      if (o.payment_mode === 'partial_payment') return acc + (o.pending_amount || 0);
+      return acc;
+    }, 0);
+
+    // Subtract already approved settlements
+    const alreadySettled = cashSettlements
+      .filter(s => (s.driver_id === driverId || driverId === 'vendor-01') && s.status === 'approved')
+      .reduce((acc, s) => acc + s.amount, 0);
+
+    return Math.max(0, totalCollected - alreadySettled);
+  };
+
+  const submitCashSettlement = (
+    driverId: string,
+    driverName: string,
+    amount: number,
+    method: CashSettlementMethod,
+    orderIds: string[],
+    proofUrl?: string,
+    notes?: string
+  ) => {
+    const newSettlement: CashSettlement = {
+      id: `csh-${Date.now().toString(36)}`,
+      driver_id: driverId,
+      driver_name: driverName,
+      amount,
+      method,
+      proof_image_url: proofUrl || null,
+      notes: notes || null,
+      status: 'pending_review',
+      order_ids: orderIds,
+      reviewed_by: null,
+      reviewed_at: null,
+      created_at: new Date().toISOString(),
+    };
+    setCashSettlements(prev => {
+      const updated = [...prev, newSettlement];
+      localStorage.setItem('tacticos_cash_settlements', JSON.stringify(updated));
+      return updated;
+    });
+
+    // Notify admin
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: 'ayniprotocol@gmail.com',
+        subject: `💰 RENDICIÓN DE CAJA: ${driverName} — Bs. ${amount.toFixed(2)}`,
+        title: 'RENDICIÓN DE EFECTIVO PENDIENTE DE APROBACIÓN',
+        message: `El repartidor ${driverName} ha enviado una rendición de caja por Bs. ${amount.toFixed(2)}.\nMétodo: ${method === 'qr_transfer' ? 'Transferencia QR Simple' : 'Entrega física en Base'}.\nÓrdenes cubiertas: ${orderIds.join(', ')}.\nRevisa y aprueba en el panel de administración.`,
+      }),
+    }).catch(e => console.warn('Could not notify admin of cash settlement:', e));
+
+    toast.success(`Rendición de Bs. ${amount.toFixed(2)} enviada al administrador para revisión`);
+  };
+
+  const reviewCashSettlement = (settlementId: string, approved: boolean, reviewerName?: string) => {
+    setCashSettlements(prev => {
+      const updated = prev.map(s =>
+        s.id === settlementId
+          ? {
+              ...s,
+              status: approved ? 'approved' as const : 'rejected' as const,
+              reviewed_by: reviewerName || 'Admin',
+              reviewed_at: new Date().toISOString(),
+            }
+          : s
+      );
+      localStorage.setItem('tacticos_cash_settlements', JSON.stringify(updated));
+      return updated;
+    });
+    toast.success(approved ? '✅ Rendición aprobada y cuadrada' : '❌ Rendición rechazada');
+  };
+
   const resolveAlert = (id: string) => {
     setAlerts(prev =>
       prev.map(a => (a.id === id ? { ...a, resolved: true, resolved_at: new Date().toISOString() } : a))
@@ -1291,6 +1388,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setDriverEarnings(demoDriverEarnings);
     setIsDriverAvailable(true);
     setStoreSettings(defaultStoreSettings);
+    setCashSettlements([]);
     localStorage.removeItem('tacticos_store_categories');
     localStorage.removeItem('tacticos_store_products');
     localStorage.removeItem('tacticos_store_alerts');
@@ -1299,6 +1397,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('tacticos_store_driver_earnings');
     localStorage.removeItem('tacticos_driver_available');
     localStorage.removeItem('tacticos_store_settings');
+    localStorage.removeItem('tacticos_cash_settlements');
     toast.info('Datos restaurados a valores de fábrica para Bolivia');
   };
 
@@ -1336,6 +1435,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         cancelOrder,
         toggleDriverAvailability,
         settleDriverEarnings,
+        cashSettlements,
+        getDriverCashOwed,
+        submitCashSettlement,
+        reviewCashSettlement,
         resolveAlert,
         resetToDefaults,
       }}

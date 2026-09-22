@@ -261,3 +261,22 @@ export interface CategorySalesSummary {
   total_sales: number;
   order_count: number;
 }
+
+// Cash settlement (driver returns collected cash to store)
+export type CashSettlementStatus = 'pending_review' | 'approved' | 'rejected';
+export type CashSettlementMethod = 'qr_transfer' | 'physical_delivery';
+
+export interface CashSettlement {
+  id: string;
+  driver_id: string;
+  driver_name: string;
+  amount: number;
+  method: CashSettlementMethod;
+  proof_image_url?: string | null; // QR transfer receipt screenshot
+  notes?: string | null;
+  status: CashSettlementStatus;
+  order_ids: string[]; // orders covered by this settlement
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  created_at: string;
+}

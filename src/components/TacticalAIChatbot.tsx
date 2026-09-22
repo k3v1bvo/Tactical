@@ -23,6 +23,7 @@ import Image from 'next/image';
 import { toast } from 'sonner';
 import { useCart } from '@/context/CartContext';
 import { useStore } from '@/context/StoreContext';
+import { useAuth } from '@/context/AuthContext';
 import { tacticalAudio } from '@/lib/tactical-audio';
 import type { Product } from '@/lib/types';
 
@@ -127,6 +128,7 @@ export function TacticalAIChatbot() {
 
   const { addItem } = useCart();
   const { products, orders } = useStore();
+  const { userName, userEmail, role, isLoggedIn } = useAuth();
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -148,6 +150,38 @@ export function TacticalAIChatbot() {
       setHasUnread(false);
     }
   }, [messages, isOpen]);
+
+  // Build context payloads for the AI
+  const buildUserContext = () => {
+    if (!isLoggedIn) return null;
+    const userOrders = orders.filter(o =>
+      o.customer_email === userEmail || o.user_id === userEmail
+    ).slice(0, 10);
+    return {
+      name: userName || 'Operador',
+      email: userEmail || '',
+      role: role || 'client',
+      totalOrders: userOrders.length,
+      orders: userOrders.map(o => ({
+        id: o.id,
+        status: o.status,
+        total: o.total,
+        date: o.created_at,
+        items: o.items?.length || 0,
+        payment_mode: o.payment_mode || 'full_payment',
+      })),
+    };
+  };
+
+  const buildInventorySummary = () => {
+    return products.slice(0, 20).map(p => ({
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      stock: p.stock,
+      category: p.category_id,
+    }));
+  };
 
   const handleSendMessage = async (textToSend?: string) => {
     const query = (textToSend || input).trim();
@@ -188,6 +222,8 @@ export function TacticalAIChatbot() {
         body: JSON.stringify({
           userQuery: query,
           messages: [...messages, userMessage],
+          userContext: buildUserContext(),
+          inventory: buildInventorySummary(),
         }),
       });
 

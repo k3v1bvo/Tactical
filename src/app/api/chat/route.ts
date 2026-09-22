@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     } catch {
       body = {};
     }
-    const { messages, userQuery } = body;
+    const { messages, userQuery, userContext, inventory } = body;
     const query = (userQuery || (messages && messages[messages.length - 1]?.content) || '').toLowerCase();
     const geminiKey = getEnv('GEMINI_API_KEY');
 
@@ -84,15 +84,50 @@ export async function POST(req: Request) {
     if (orderMatch || query.includes('rastrear') || query.includes('mi orden') || query.includes('donde esta mi pedido')) {
       isTracking = true;
       const orderCode = orderMatch ? orderMatch[0].toUpperCase() : 'ORD-LOCAL';
-      reply = `📡 TELEMETRÍA DE SEGUIMIENTO EN VIVO — ${orderCode}
 
-Estado Actual: 🟢 PREPARADO Y PRECINTADO
-Ubicación: Centro Logístico Cochabamba (Base Heroínas #560).
-Asignación: Unidad motorizada lista para despacho.
-Precinto de Seguridad: STANAG-BOL-9921.
+      // Try to find the order in user context
+      let orderDetail = '';
+      if (userContext?.orders && Array.isArray(userContext.orders)) {
+        const found = userContext.orders.find((o: any) => o.id?.toUpperCase() === orderCode);
+        if (found) {
+          const statusMap: Record<string, string> = {
+            pending: '⏳ Pendiente de pago',
+            paid: '✅ Pagado — En espera de preparación',
+            preparing: '📦 En preparación en almacén',
+            ready: '🟢 Preparado y listo para despacho',
+            assigned: '🛵 Repartidor asignado',
+            picked_up: '📬 Recogido por motorizado',
+            in_transit: '🚀 EN CAMINO a tu ubicación',
+            delivered: '✅ ENTREGADO con éxito',
+            cancelled: '❌ Cancelado',
+          };
+          orderDetail = `\nEstado: ${statusMap[found.status] || found.status}\nTotal: Bs. ${found.total}\nModalidad: ${found.payment_mode}`;
+        }
+      }
+
+      reply = `📡 TELEMETRÍA DE SEGUIMIENTO EN VIVO — ${orderCode}
+${orderDetail || '\nEstado Actual: 🟢 PREPARADO Y PRECINTADO\nUbicación: Centro Logístico Cochabamba (Base Heroínas #560).\nAsignación: Unidad motorizada lista para despacho.'}
 
 Para coordinar entrega inmediata a tu domicilio o número de guía de flota, contacta a la central de despacho.`;
       quickActions = ['Ver en Mis Órdenes', 'Hablar por WhatsApp', 'Ver Catálogo'];
+    }
+
+    // Build dynamic context for Gemini
+    let dynamicContext = '';
+    if (userContext) {
+      dynamicContext += `\n\nUSUARIO ACTUAL EN SESIÓN:\n- Nombre: ${userContext.name}\n- Correo: ${userContext.email}\n- Rol: ${userContext.role}\n- Total de pedidos: ${userContext.totalOrders}`;
+      if (userContext.orders && userContext.orders.length > 0) {
+        dynamicContext += '\n- Sus pedidos recientes:';
+        for (const o of userContext.orders.slice(0, 5)) {
+          dynamicContext += `\n  • ${o.id} — Estado: ${o.status} — Total: Bs. ${o.total} — Fecha: ${o.date}`;
+        }
+      }
+    }
+    if (inventory && Array.isArray(inventory) && inventory.length > 0) {
+      dynamicContext += '\n\nINVENTARIO REAL EN VIVO (stock actual de la tienda):';
+      for (const p of inventory) {
+        dynamicContext += `\n- ${p.name} (ID: ${p.id}) — Bs. ${p.price} — Stock: ${p.stock} unidades`;
+      }
     }
 
     // If Google Gemini API key is configured and not a simple tracking query
@@ -118,7 +153,7 @@ Para coordinar entrega inmediata a tu domicilio o número de guía de flota, con
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               systemInstruction: {
-                parts: [{ text: SYSTEM_TACTICAL_KNOWLEDGE + '\n\nFORMATO: Responde SIEMPRE en texto limpio. NO uses markdown, NO uses asteriscos (**), NO uses guiones como listas. Usa emojis para resaltar secciones. Sé breve, militar y directo.' }]
+                parts: [{ text: SYSTEM_TACTICAL_KNOWLEDGE + dynamicContext + '\n\nFORMATO: Responde SIEMPRE en texto limpio. NO uses markdown, NO uses asteriscos (**), NO uses guiones como listas. Usa emojis para resaltar secciones. Sé breve, militar y directo. Si el usuario pregunta por sus pedidos o stock, usa los datos de INVENTARIO REAL y USUARIO ACTUAL para responder con información precisa.' }]
               },
               contents: [
                 ...conversationHistory,
