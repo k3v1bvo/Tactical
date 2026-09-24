@@ -195,15 +195,19 @@ CREATE TABLE IF NOT EXISTS bank_notifications (
   created_at timestamptz DEFAULT now()
 );
 
--- 13. QRs PRE-GENERADOS POR MONTOS ESPECÍFICOS (Subidos por el Dueño)
+-- 13. MATRIZ DE QRs PRE-GENERADOS POR MONTOS ESPECÍFICOS Y COMODÍN (ImgBB & Supabase)
 CREATE TABLE IF NOT EXISTS fixed_amount_qrs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  amount numeric(10,2) NOT NULL,              -- Monto exacto (ej. 15.00, 50.00, 289.99)
+  amount numeric(10,2),                        -- Monto exacto en Bs. (null para QR comodín sin monto fijado)
   qr_image_url text NOT NULL,                 -- Imagen del QR alojada en ImgBB
-  bank_name text DEFAULT 'Simple QR Bolivia',
-  account_name text,
-  is_active boolean DEFAULT true,
-  created_at timestamptz DEFAULT now()
+  bank_name text DEFAULT 'Simple QR Bolivia', -- Banco (BCP, BNB, Banco Unión, GanaMóvil, etc.)
+  account_name text,                          -- Titular de la cuenta receptora
+  is_active boolean DEFAULT true,             -- Si el QR está activo para despachar al cliente
+  is_default boolean DEFAULT false,           -- True si es el QR comodín de respaldo
+  expiration_years text DEFAULT '3 años',     -- Vigencia del QR estático (ej. 3 años)
+  notes text,                                 -- Notas internas de control
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
 );
 
 -- 14. VERIFICACIONES DE PAGO CON INTELIGENCIA ARTIFICIAL (GEMINI OCR)
@@ -381,3 +385,50 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- =========================================================================================
+-- 17. RENDICIÓN DE EFECTIVO (CASH SETTLEMENTS — CUADRE DE CAJA)
+-- =========================================================================================
+CREATE TABLE IF NOT EXISTS public.cash_settlements (
+  id text PRIMARY KEY,
+  driver_id text NOT NULL,
+  driver_name text NOT NULL,
+  amount numeric(10,2) NOT NULL CHECK (amount > 0),
+  method text NOT NULL CHECK (method IN ('qr_transfer', 'physical_delivery')),
+  proof_image_url text,                              -- URL de ImgBB con foto del comprobante QR
+  notes text,
+  status text NOT NULL DEFAULT 'pending_review' CHECK (status IN ('pending_review', 'approved', 'rejected')),
+  order_ids text[] NOT NULL DEFAULT '{}',             -- IDs de órdenes cubiertas
+  reviewed_by text,
+  reviewed_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cash_settlements_driver ON public.cash_settlements(driver_id);
+CREATE INDEX IF NOT EXISTS idx_cash_settlements_status ON public.cash_settlements(status);
+CREATE INDEX IF NOT EXISTS idx_cash_settlements_created ON public.cash_settlements(created_at DESC);
+
+ALTER TABLE public.cash_settlements ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Lectura general rendiciones" ON public.cash_settlements FOR SELECT USING (true);
+CREATE POLICY "Insertar rendiciones repartidores" ON public.cash_settlements FOR INSERT WITH CHECK (true);
+CREATE POLICY "Actualizar rendiciones admin" ON public.cash_settlements FOR UPDATE USING (true);
+
+-- =========================================================================================
+-- 18. SUPABASE REALTIME (WEBSOCKETS)
+-- Habilita la sincronización en vivo entre cliente, repartidor y administrador
+-- =========================================================================================
+ALTER TABLE public.cash_settlements REPLICA IDENTITY FULL;
+ALTER TABLE public.orders REPLICA IDENTITY FULL;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.cash_settlements;
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.orders;
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.order_items;
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+

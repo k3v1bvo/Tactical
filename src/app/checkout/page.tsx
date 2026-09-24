@@ -57,7 +57,7 @@ const PICKUP_TIME_SLOTS = [
 
 export default function CheckoutPage() {
   const { items, totalPrice, totalItems, clearCart } = useCart();
-  const { shippingZones, storeSettings, createOrder } = useStore();
+  const { shippingZones, storeSettings, createOrder, getQRForAmount } = useStore();
   const { userName, userEmail, userPhone, isLoggedIn } = useAuth();
   const router = useRouter();
 
@@ -359,76 +359,139 @@ export default function CheckoutPage() {
             </div>
 
             {/* IF QR PAYMENT (100% OR 50%) */}
-            {amountToPayNow > 0 && (
-              <div className="mb-6">
-                <div className="p-4 bg-white rounded-2xl inline-block shadow-2xl border-4 border-[#C8A961]/40 mb-3">
-                  {qrDataUrl ? (
-                    <Image
-                      src={qrDataUrl}
-                      alt="Código QR de Pago Bolivia"
-                      width={220}
-                      height={220}
-                      className="rounded-lg mx-auto"
-                    />
+            {amountToPayNow > 0 && (() => {
+              const matchedQRInfo = getQRForAmount(amountToPayNow);
+              const qrImgSrc = matchedQRInfo.qr?.qr_image_url || qrDataUrl;
+              const isExact = matchedQRInfo.isExactMatch;
+              const bankName = matchedQRInfo.qr?.bank_name || 'Simple QR Bolivia';
+              const accountName = matchedQRInfo.qr?.account_name || 'Tienda Táctica Bolivia';
+
+              return (
+                <div className="mb-6 space-y-4">
+                  {/* Status Banner: Exact amount locked vs Fallback Comodín */}
+                  {isExact ? (
+                    <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-left flex items-start gap-3 shadow-lg shadow-emerald-500/5">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <ShieldCheck size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono font-bold uppercase text-emerald-400">
+                            QR CON MONTO EXACTO BLOQUEADO // 3+ AÑOS DE VIGENCIA
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[9px] uppercase font-bold">
+                            Anti-Fraude Activo
+                          </span>
+                        </div>
+                        <p className="text-xs text-neutral-300 mt-1">
+                          Este código QR fue emitido con el valor exacto de <strong className="text-white">Bs. {amountToPayNow.toFixed(2)}</strong>. Al escanearlo desde tu app bancaria (<span className="text-emerald-300">{bankName}</span>), el monto ya aparecerá fijado de forma protegida para evitar errores o estafas.
+                        </p>
+                        <div className="text-[11px] text-neutral-400 mt-1.5 flex items-center gap-2 flex-wrap">
+                          <span>Titular: <strong className="text-white">{accountName}</strong></span>
+                          <span>•</span>
+                          <span>Banco: <strong className="text-white">{bankName}</strong></span>
+                        </div>
+                      </div>
+                    </div>
                   ) : (
-                    <div className="w-52 h-52 bg-neutral-900 flex items-center justify-center text-xs text-neutral-400">
-                      Generando QR oficial...
+                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left flex items-start gap-3 shadow-lg shadow-amber-500/5">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <QrCode size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono font-bold uppercase text-amber-400">
+                            QR COMODÍN // MONTO MANUAL REQUERIDO
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono text-[9px] uppercase font-bold">
+                            Digitar Monto
+                          </span>
+                        </div>
+                        <p className="text-xs text-neutral-300 mt-1">
+                          El total de tu orden no tiene un QR fijo asignado en la matriz. Por favor, al escanear este código con tu app bancaria (<span className="text-amber-300">{bankName}</span>), <strong className="text-white underline">digita manualmente el monto exacto de Bs. {amountToPayNow.toFixed(2)}</strong>.
+                        </p>
+                        <div className="text-[11px] text-neutral-400 mt-1.5 flex items-center gap-2 flex-wrap">
+                          <span>Verifica Titular: <strong className="text-white">{accountName}</strong></span>
+                          <span>•</span>
+                          <span>Abono requerido: <strong className="text-amber-400 font-mono font-bold">Bs. {amountToPayNow.toFixed(2)}</strong></span>
+                        </div>
+                      </div>
                     </div>
                   )}
-                </div>
 
-                <div className="text-xl font-bold text-white mb-1">
-                  Monto a Transferir por QR: <span className="text-[#C8A961]">Bs. {amountToPayNow.toFixed(2)}</span>
-                </div>
-
-                {paymentMode === 'partial_payment' && (
-                  <div className="text-xs text-amber-300 bg-amber-500/10 p-2.5 rounded-lg max-w-md mx-auto border border-amber-500/20 mb-3">
-                    <strong>Anticipo del 50%:</strong> Abonar Bs. {amountToPayNow.toFixed(2)} ahora. El saldo restante de <strong className="text-white">Bs. {amountToPayLater.toFixed(2)}</strong> lo pagas al momento de recibir tu pedido.
+                  {/* QR Image Box */}
+                  <div className="p-4 bg-white rounded-2xl inline-block shadow-2xl border-4 border-[#C8A961]/40">
+                    {qrImgSrc ? (
+                      <div className="relative w-56 h-56 mx-auto flex items-center justify-center overflow-hidden">
+                        <Image
+                          src={qrImgSrc}
+                          alt="Código QR de Pago Bolivia"
+                          width={224}
+                          height={224}
+                          unoptimized
+                          className="rounded-lg object-contain max-h-56 max-w-56"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-56 h-56 bg-neutral-900 flex items-center justify-center text-xs text-neutral-400">
+                        Cargando QR oficial...
+                      </div>
+                    )}
                   </div>
-                )}
 
-                <p className="text-xs text-neutral-400 mb-6">
-                  Escanea con tu aplicación bancaria (BNB, BCP, Banco Unión, GanaMóvil, Fassil o billetera QR Simple) para validar la acreditación.
-                </p>
-
-                {/* Upload proof */}
-                <div className="glass-card-static p-5 text-left border border-white/[0.08] mb-6">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle2 size={16} className="text-[#C8A961]" />
-                    <span className="text-sm font-semibold text-white">Comprobante de Transferencia Bancaria</span>
+                  <div className="text-xl font-bold text-white mb-1">
+                    Monto a Transferir por QR: <span className="text-[#C8A961]">Bs. {amountToPayNow.toFixed(2)}</span>
                   </div>
-                  <p className="text-xs text-neutral-400 mb-3">
-                    Sube la captura de tu pago QR para acelerar la preparación de tu orden en almacén.
+
+                  {paymentMode === 'partial_payment' && (
+                    <div className="text-xs text-amber-300 bg-amber-500/10 p-2.5 rounded-lg max-w-md mx-auto border border-amber-500/20 mb-3">
+                      <strong>Anticipo del 50%:</strong> Abonar Bs. {amountToPayNow.toFixed(2)} ahora. El saldo restante de <strong className="text-white">Bs. {amountToPayLater.toFixed(2)}</strong> lo pagas al momento de recibir tu pedido.
+                    </div>
+                  )}
+
+                  <p className="text-xs text-neutral-400">
+                    Escanea con tu aplicación bancaria (Banco Unión, BNB, BCP, GanaMóvil, Fassil o billetera QR Simple) para validar la acreditación.
                   </p>
 
-                  <ImageUploader
-                    value={receiptUrl}
-                    onChange={(url) => {
-                      setReceiptUrl(url);
-                      setReceiptUploaded(false);
-                    }}
-                    label=""
-                    aspectRatio="video"
-                  />
-
-                  {receiptUrl && !receiptUploaded && (
-                    <button
-                      type="button"
-                      onClick={handleConfirmReceipt}
-                      className="btn-tactical w-full mt-3 flex items-center justify-center gap-2 text-sm"
-                    >
-                      <CheckCircle2 size={16} /> Enviar Comprobante para Verificación
-                    </button>
-                  )}
-
-                  {receiptUploaded && (
-                    <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-xs text-emerald-400">
-                      <CheckCircle2 size={16} /> Comprobante registrado. El comando validará la acreditación.
+                  {/* Upload proof */}
+                  <div className="glass-card-static p-5 text-left border border-white/[0.08] mb-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle2 size={16} className="text-[#C8A961]" />
+                      <span className="text-sm font-semibold text-white">Comprobante de Transferencia Bancaria</span>
                     </div>
-                  )}
+                    <p className="text-xs text-neutral-400 mb-3">
+                      Sube la captura de tu pago QR para acelerar la preparación de tu orden en almacén. Las imágenes se alojan de forma segura en ImgBB para verificación inmediata.
+                    </p>
+
+                    <ImageUploader
+                      value={receiptUrl}
+                      onChange={(url) => {
+                        setReceiptUrl(url);
+                        setReceiptUploaded(false);
+                      }}
+                      label=""
+                      aspectRatio="video"
+                    />
+
+                    {receiptUrl && !receiptUploaded && (
+                      <button
+                        type="button"
+                        onClick={handleConfirmReceipt}
+                        className="btn-tactical w-full mt-3 flex items-center justify-center gap-2 text-sm"
+                      >
+                        <CheckCircle2 size={16} /> Enviar Comprobante para Verificación
+                      </button>
+                    )}
+
+                    {receiptUploaded && (
+                      <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-xs text-emerald-400">
+                        <CheckCircle2 size={16} /> Comprobante registrado. El comando validará la acreditación.
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* IF CASH ON DELIVERY */}
             {paymentMode === 'cash_on_delivery' && (

@@ -177,6 +177,20 @@ export interface OrderItem {
   product?: Product;
 }
 
+export interface FixedAmountQR {
+  id: string;
+  amount: number | null;               // Monto exacto en Bs. (null o 0 si es QR comodín/sin monto fijo)
+  qr_image_url: string;                // Link directo de la imagen en ImgBB
+  bank_name: string;                   // Ej: 'Banco Unión', 'BCP', 'BNB', 'Simple QR Bolivia', 'Yape'
+  account_name?: string | null;        // Nombre del titular de la cuenta
+  is_active: boolean;                  // Habilitado para servir en checkout
+  is_default: boolean;                 // true si es el QR comodín de respaldo cuando el monto no coincide
+  expiration_years?: string;           // Ej: '3 años', '5 años', 'Sin expiración'
+  notes?: string | null;               // Notas internas
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface PaymentVerification {
   id: string;
   order_id: string;

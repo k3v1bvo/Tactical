@@ -13,6 +13,7 @@ import type {
   PaymentMode,
   CashSettlement,
   CashSettlementMethod,
+  FixedAmountQR,
 } from '@/lib/types';
 import {
   demoCategories,
@@ -23,6 +24,7 @@ import {
   demoDriverEarnings,
   demoVendor,
   defaultStoreSettings,
+  demoFixedAmountQRs,
 } from '@/lib/demo-data';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -141,12 +143,90 @@ interface StoreContextType {
   submitCashSettlement: (driverId: string, driverName: string, amount: number, method: CashSettlementMethod, orderIds: string[], proofUrl?: string, notes?: string) => void;
   reviewCashSettlement: (settlementId: string, approved: boolean, reviewerName?: string) => void;
 
+  // Matriz de QRs Estáticos (ImgBB & Supabase)
+  fixedAmountQRs: FixedAmountQR[];
+  addFixedAmountQR: (qr: Omit<FixedAmountQR, 'id' | 'created_at'>) => Promise<FixedAmountQR>;
+  updateFixedAmountQR: (id: string, data: Partial<FixedAmountQR>) => Promise<void>;
+  deleteFixedAmountQR: (id: string) => Promise<boolean>;
+  toggleFixedAmountQRStatus: (id: string) => Promise<void>;
+  getQRForAmount: (amount: number) => { qr: FixedAmountQR | null; isExactMatch: boolean; isDefault: boolean };
+
   // Alerts & Maintenance
   resolveAlert: (id: string) => void;
   resetToDefaults: () => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
+
+function mapSupabaseOrder(o: any, items: any[] = []): Order {
+  return {
+    id: o.id,
+    user_id: o.customer_id || 'anon',
+    vendor_id: o.vendor_id || null,
+    driver_id: o.driver_id || null,
+    shipping_zone_id: o.shipping_zone_id || null,
+    shipping_cost: parseFloat(o.shipping_cost) || 0,
+    driver_commission: parseFloat(o.driver_commission) || 0,
+    status: o.status || 'pending',
+    total: parseFloat(o.total) || 0,
+    paid_amount: parseFloat(o.paid_amount) || 0,
+    pending_amount: parseFloat(o.pending_amount) || 0,
+    payment_method: o.payment_method || 'qr_simple',
+    payment_mode: o.payment_mode || 'full_payment',
+    delivery_type: o.delivery_type || 'delivery',
+    free_gift: o.free_gift || null,
+    pickup_time: o.pickup_time || null,
+    pickup_location: o.pickup_location || null,
+    destination_department: o.destination_department || null,
+    qr_code_data: o.qr_code_data || null,
+    created_at: o.created_at || new Date().toISOString(),
+    paid_at: o.paid_at || null,
+    delivered_at: o.delivered_at || null,
+    cancelled_at: o.cancelled_at || null,
+    cancellation_reason: o.cancellation_reason || null,
+    internal_notes: o.internal_notes || null,
+    customer_name: o.customer_name || 'Cliente Táctico',
+    customer_phone: o.customer_phone || '',
+    customer_email: o.customer_email || 'cliente@tacticos.bo',
+    customer_address: o.customer_address || '',
+    delivery_notes: o.delivery_notes || null,
+    customer_rating: o.customer_rating || null,
+    customer_review: o.customer_review || null,
+    items: (items && items.length > 0)
+      ? items.map((i: any) => ({
+          id: i.id,
+          order_id: i.order_id,
+          product_id: i.product_id,
+          quantity: i.quantity,
+          unit_price: parseFloat(i.unit_price) || 0,
+          subtotal: parseFloat(i.total_price || i.subtotal) || 0,
+        }))
+      : [],
+    customer: {
+      name: o.customer_name || 'Cliente Táctico',
+      phone: o.customer_phone || '',
+      email: o.customer_email || 'cliente@tacticos.bo',
+      address: o.customer_address || '',
+    },
+  };
+}
+
+function mapSupabaseSettlement(s: any): CashSettlement {
+  return {
+    id: s.id,
+    driver_id: s.driver_id,
+    driver_name: s.driver_name,
+    amount: parseFloat(s.amount) || 0,
+    method: s.method,
+    proof_image_url: s.proof_image_url || null,
+    notes: s.notes || null,
+    status: s.status,
+    order_ids: Array.isArray(s.order_ids) ? s.order_ids : [],
+    reviewed_by: s.reviewed_by || null,
+    reviewed_at: s.reviewed_at || null,
+    created_at: s.created_at || new Date().toISOString(),
+  };
+}
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>(demoCategories);
@@ -158,6 +238,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [isDriverAvailable, setIsDriverAvailable] = useState<boolean>(true);
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
   const [cashSettlements, setCashSettlements] = useState<CashSettlement[]>([]);
+  const [fixedAmountQRs, setFixedAmountQRs] = useState<FixedAmountQR[]>(demoFixedAmountQRs);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Load from localStorage on mount
@@ -247,6 +328,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const savedSettlements = localStorage.getItem('tacticos_cash_settlements');
       if (savedSettlements) setCashSettlements(JSON.parse(savedSettlements));
 
+      const savedQRs = localStorage.getItem('tacticos_fixed_amount_qrs');
+      if (savedQRs) {
+        try {
+          setFixedAmountQRs(JSON.parse(savedQRs));
+        } catch {
+          setFixedAmountQRs(demoFixedAmountQRs);
+        }
+      } else {
+        setFixedAmountQRs(demoFixedAmountQRs);
+        localStorage.setItem('tacticos_fixed_amount_qrs', JSON.stringify(demoFixedAmountQRs));
+      }
+
       // Live Supabase sync
       const client = supabase;
       if (client) {
@@ -307,12 +400,199 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             });
           }
         });
+
+        // 5. Órdenes y Productos de Órdenes desde Supabase
+        client
+          .from('orders')
+          .select('*, order_items(*)')
+          .order('created_at', { ascending: false })
+          .then(({ data, error }) => {
+            if (!error && data && data.length > 0) {
+              const mapped = data.map((row: any) => mapSupabaseOrder(row, row.order_items || []));
+              setOrders(mapped);
+              try {
+                localStorage.setItem('tacticos_store_orders', JSON.stringify(mapped));
+              } catch (e) {
+                console.warn('Error saving orders to localStorage:', e);
+              }
+            }
+          });
+
+        // 6. Rendición de Efectivo (Cuadre de Caja) desde Supabase
+        client
+          .from('cash_settlements')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .then(({ data, error }) => {
+            if (!error && data && data.length > 0) {
+              const mapped = data.map(mapSupabaseSettlement);
+              setCashSettlements(mapped);
+              try {
+                localStorage.setItem('tacticos_cash_settlements', JSON.stringify(mapped));
+              } catch (e) {
+                console.warn('Error saving settlements to localStorage:', e);
+              }
+            }
+          });
+
+        // 7. Matriz de QRs Estáticos (ImgBB & Supabase)
+        client
+          .from('fixed_amount_qrs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .then(({ data, error }) => {
+            if (!error && data && data.length > 0) {
+              const mappedQRs: FixedAmountQR[] = data.map((d: any) => ({
+                id: d.id,
+                amount: d.amount !== null && d.amount !== undefined ? parseFloat(d.amount) : null,
+                qr_image_url: d.qr_image_url,
+                bank_name: d.bank_name || 'Simple QR Bolivia',
+                account_name: d.account_name || null,
+                is_active: d.is_active !== undefined ? d.is_active : true,
+                is_default: d.is_default !== undefined ? d.is_default : false,
+                expiration_years: d.expiration_years || '3 años',
+                notes: d.notes || null,
+                created_at: d.created_at || new Date().toISOString(),
+                updated_at: d.updated_at || new Date().toISOString(),
+              }));
+              setFixedAmountQRs(mappedQRs);
+              try {
+                localStorage.setItem('tacticos_fixed_amount_qrs', JSON.stringify(mappedQRs));
+              } catch (e) {
+                console.warn('Error saving QRs to localStorage:', e);
+              }
+            }
+          });
       }
     } catch (e) {
       console.warn('Error reading from storage or Supabase:', e);
     } finally {
       setIsInitialized(true);
     }
+  }, []);
+
+  // WebSockets — Supabase Realtime live sync para Órdenes y Rendiciones de Efectivo
+  useEffect(() => {
+    const client = supabase;
+    if (!client) return;
+
+    const channel = client
+      .channel('tactical_realtime_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload: any) => {
+          console.log('⚡ [Realtime WebSockets] Order event:', payload.eventType, payload);
+          if (payload.eventType === 'INSERT') {
+            const newOrder = mapSupabaseOrder(payload.new);
+            setOrders(prev => {
+              if (prev.some(o => o.id === newOrder.id)) return prev;
+              return [newOrder, ...prev];
+            });
+            toast.info(`🔔 ¡Nueva orden táctica recibida! #${(payload.new.id || '').toUpperCase()}`, {
+              description: `Total: Bs. ${Number(payload.new.total || 0).toFixed(2)} • ${payload.new.customer_name || 'Cliente'}`,
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedRow = payload.new;
+            setOrders(prev =>
+              prev.map(o => {
+                if (o.id === updatedRow.id) {
+                  return {
+                    ...o,
+                    ...mapSupabaseOrder(updatedRow, o.items),
+                    items: o.items, // conservar items ya cargados
+                  };
+                }
+                return o;
+              })
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setOrders(prev => prev.filter(o => o.id !== payload.old.id));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'cash_settlements' },
+        (payload: any) => {
+          console.log('⚡ [Realtime WebSockets] Cash settlement event:', payload.eventType, payload);
+          if (payload.eventType === 'INSERT') {
+            const newSettlement = mapSupabaseSettlement(payload.new);
+            setCashSettlements(prev => {
+              if (prev.some(s => s.id === newSettlement.id)) return prev;
+              return [newSettlement, ...prev];
+            });
+            toast.info(`💰 Nueva Rendición de Caja: ${newSettlement.driver_name}`, {
+              description: `Monto: Bs. ${newSettlement.amount.toFixed(2)} (${newSettlement.method === 'qr_transfer' ? 'QR Simple' : 'Entrega física en Base'})`,
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = mapSupabaseSettlement(payload.new);
+            setCashSettlements(prev => prev.map(s => s.id === updated.id ? updated : s));
+            if (updated.status === 'approved') {
+              toast.success(`✅ Rendición de Bs. ${updated.amount.toFixed(2)} aprobada por administración`);
+            } else if (updated.status === 'rejected') {
+              toast.error(`❌ Rendición de Bs. ${updated.amount.toFixed(2)} rechazada`);
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'fixed_amount_qrs' },
+        (payload: any) => {
+          console.log('⚡ [Realtime WebSockets] Fixed amount QR event:', payload.eventType, payload);
+          if (payload.eventType === 'INSERT') {
+            const row = payload.new;
+            const newQR: FixedAmountQR = {
+              id: row.id,
+              amount: row.amount !== null && row.amount !== undefined ? parseFloat(row.amount) : null,
+              qr_image_url: row.qr_image_url,
+              bank_name: row.bank_name || 'Simple QR Bolivia',
+              account_name: row.account_name || null,
+              is_active: row.is_active !== undefined ? row.is_active : true,
+              is_default: row.is_default !== undefined ? row.is_default : false,
+              expiration_years: row.expiration_years || '3 años',
+              notes: row.notes || null,
+              created_at: row.created_at || new Date().toISOString(),
+              updated_at: row.updated_at || new Date().toISOString(),
+            };
+            setFixedAmountQRs(prev => {
+              if (prev.some(q => q.id === newQR.id)) return prev;
+              return [newQR, ...prev];
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            const row = payload.new;
+            setFixedAmountQRs(prev =>
+              prev.map(q => {
+                if (q.id === row.id) {
+                  return {
+                    ...q,
+                    amount: row.amount !== null && row.amount !== undefined ? parseFloat(row.amount) : null,
+                    qr_image_url: row.qr_image_url || q.qr_image_url,
+                    bank_name: row.bank_name || q.bank_name,
+                    account_name: row.account_name !== undefined ? row.account_name : q.account_name,
+                    is_active: row.is_active !== undefined ? row.is_active : q.is_active,
+                    is_default: row.is_default !== undefined ? row.is_default : q.is_default,
+                    expiration_years: row.expiration_years || q.expiration_years,
+                    notes: row.notes !== undefined ? row.notes : q.notes,
+                    updated_at: row.updated_at || new Date().toISOString(),
+                  };
+                }
+                return q;
+              })
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setFixedAmountQRs(prev => prev.filter(q => q.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe((status: string) => {
+        console.log('⚡ [Realtime WebSockets Status]:', status);
+      });
+
+    return () => {
+      client.removeChannel(channel);
+    };
   }, []);
 
   // Save to localStorage on changes
@@ -387,6 +667,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       console.warn('Error saving store settings:', e);
     }
   }, [storeSettings, isInitialized]);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+    try {
+      localStorage.setItem('tacticos_cash_settlements', JSON.stringify(cashSettlements));
+    } catch (e) {
+      console.warn('Error saving cash settlements:', e);
+    }
+  }, [cashSettlements, isInitialized]);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+    try {
+      localStorage.setItem('tacticos_fixed_amount_qrs', JSON.stringify(fixedAmountQRs));
+    } catch (e) {
+      console.warn('Error saving fixed amount QRs:', e);
+    }
+  }, [fixedAmountQRs, isInitialized]);
 
   // SETTINGS ACTIONS
   const updateStoreSettings = (newSettings: Partial<StoreSettings>) => {
@@ -1054,6 +1352,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client
+        .from('orders')
+        .update({
+          driver_id: driverId,
+          status: 'assigned',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orderId)
+        .then(({ error }) => {
+          if (error) console.error('Error updating driver assignment in Supabase:', error);
+        });
+    }
+
     toast.success(`Repartidor asignado a la orden ${orderId.toUpperCase()}`);
   };
 
@@ -1084,6 +1398,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })
     );
 
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client
+        .from('orders')
+        .update({
+          driver_id: driverId,
+          status: 'assigned',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orderId)
+        .then(({ error }) => {
+          if (error) console.error('Error updating driverAcceptOrder in Supabase:', error);
+        });
+    }
+
     toast.success(`¡Has aceptado la orden ${orderId.toUpperCase()}! Asignada a tu ruta.`);
     return true;
   };
@@ -1101,6 +1431,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return o;
       })
     );
+
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client
+        .from('orders')
+        .update({
+          status: 'picked_up',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orderId)
+        .then(({ error }) => {
+          if (error) console.error('Error updating driverPickupOrder in Supabase:', error);
+        });
+    }
+
     toast.success(`Orden ${orderId.toUpperCase()} marcada como RECOGIDA.`);
   };
 
@@ -1120,6 +1466,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return o;
       })
     );
+
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client
+        .from('orders')
+        .update({
+          status: 'in_transit',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orderId)
+        .then(({ error }) => {
+          if (error) console.error('Error updating driverInTransit in Supabase:', error);
+        });
+    }
 
     // Notify Client that driver is in transit
     if (targetOrder) {
@@ -1225,6 +1586,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }),
     }).catch(e => console.warn('Could not alert admin of delivery:', e));
 
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client
+        .from('orders')
+        .update({
+          status: 'delivered',
+          delivered_at: deliveryTime,
+          paid_amount: targetOrder.total,
+          pending_amount: 0,
+          paid_at: targetOrder.paid_at || deliveryTime,
+          updated_at: deliveryTime,
+        })
+        .eq('id', orderId)
+        .then(({ error }) => {
+          if (error) console.error('Error updating driverDeliverOrder in Supabase:', error);
+        });
+
+      client
+        .from('driver_earnings')
+        .insert({
+          id: newEarning.id,
+          driver_id: newEarning.driver_id,
+          order_id: newEarning.order_id,
+          amount: newEarning.amount,
+          zone_id: newEarning.zone_id,
+          status: 'pending',
+          created_at: newEarning.created_at,
+        })
+        .then(({ error }) => {
+          if (error) console.error('Error inserting driver commission in Supabase:', error);
+        });
+    }
+
     toast.success(`¡Entrega de orden ${orderId.toUpperCase()} completada!`, {
       description: `Comisión registrada: +Bs. ${targetOrder.driver_commission.toFixed(2)}`,
     });
@@ -1243,6 +1638,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return o;
       })
     );
+
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client
+        .from('orders')
+        .update({
+          customer_rating: rating,
+          customer_review: review,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orderId)
+        .then(({ error }) => {
+          if (error) console.error('Error updating rating in Supabase:', error);
+        });
+    }
+
     toast.success('¡Gracias por calificar la entrega de tu pedido!');
   };
 
@@ -1269,6 +1681,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })
     );
 
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client
+        .from('orders')
+        .update({
+          status: 'cancelled',
+          cancelled_at: new Date().toISOString(),
+          cancellation_reason: reason || 'Cancelado por el cliente',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orderId)
+        .then(({ error }) => {
+          if (error) console.error('Error updating cancelOrder in Supabase:', error);
+        });
+    }
+
     toast.info(`Orden ${orderId.toUpperCase()} cancelada`);
     return true;
   };
@@ -1285,6 +1714,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setDriverEarnings(prev =>
       prev.map(e => (e.id === earningId ? { ...e, status: 'paid', paid_at: new Date().toISOString() } : e))
     );
+
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client
+        .from('driver_earnings')
+        .update({
+          status: 'paid',
+          paid_at: new Date().toISOString(),
+        })
+        .eq('id', earningId)
+        .then(({ error }) => {
+          if (error) console.error('Error updating driver earning in Supabase:', error);
+        });
+    }
+
     toast.success('Comisión de reparto liquidada con éxito');
   };
 
@@ -1339,6 +1784,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return updated;
     });
 
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client
+        .from('cash_settlements')
+        .insert({
+          id: newSettlement.id,
+          driver_id: newSettlement.driver_id,
+          driver_name: newSettlement.driver_name,
+          amount: newSettlement.amount,
+          method: newSettlement.method,
+          proof_image_url: newSettlement.proof_image_url || null,
+          notes: newSettlement.notes || null,
+          status: 'pending_review',
+          order_ids: newSettlement.order_ids,
+          created_at: newSettlement.created_at,
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.warn('Could not insert cash settlement in Supabase (will remain in localStorage):', error);
+          } else {
+            console.log('✅ Cash settlement persisted to Supabase database');
+          }
+        });
+    }
+
     // Notify admin
     fetch('/api/notify', {
       method: 'POST',
@@ -1355,6 +1826,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const reviewCashSettlement = (settlementId: string, approved: boolean, reviewerName?: string) => {
+    const reviewTime = new Date().toISOString();
     setCashSettlements(prev => {
       const updated = prev.map(s =>
         s.id === settlementId
@@ -1362,14 +1834,176 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               ...s,
               status: approved ? 'approved' as const : 'rejected' as const,
               reviewed_by: reviewerName || 'Admin',
-              reviewed_at: new Date().toISOString(),
+              reviewed_at: reviewTime,
             }
           : s
       );
       localStorage.setItem('tacticos_cash_settlements', JSON.stringify(updated));
       return updated;
     });
+
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client
+        .from('cash_settlements')
+        .update({
+          status: approved ? 'approved' : 'rejected',
+          reviewed_by: reviewerName || 'Admin',
+          reviewed_at: reviewTime,
+        })
+        .eq('id', settlementId)
+        .then(({ error }) => {
+          if (error) {
+            console.warn('Could not update cash settlement in Supabase:', error);
+          } else {
+            console.log('✅ Cash settlement review synced to Supabase database');
+          }
+        });
+    }
+
     toast.success(approved ? '✅ Rendición aprobada y cuadrada' : '❌ Rendición rechazada');
+  };
+
+  // ========================================================
+  // MATRIZ DE QRs ESTÁTICOS (ImgBB & Supabase)
+  // ========================================================
+  const addFixedAmountQR = async (qrData: Omit<FixedAmountQR, 'id' | 'created_at'>): Promise<FixedAmountQR> => {
+    const newQR: FixedAmountQR = {
+      ...qrData,
+      id: `qr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setFixedAmountQRs(prev => {
+      let updated = [newQR, ...prev];
+      if (newQR.is_default) {
+        updated = updated.map(item => (item.id === newQR.id ? item : { ...item, is_default: false }));
+      }
+      localStorage.setItem('tacticos_fixed_amount_qrs', JSON.stringify(updated));
+      return updated;
+    });
+
+    const client = supabase;
+    if (client) {
+      try {
+        const { data, error } = await client
+          .from('fixed_amount_qrs')
+          .insert({
+            amount: newQR.amount,
+            qr_image_url: newQR.qr_image_url,
+            bank_name: newQR.bank_name,
+            account_name: newQR.account_name,
+            is_active: newQR.is_active,
+            is_default: newQR.is_default,
+            expiration_years: newQR.expiration_years || '3 años',
+            notes: newQR.notes,
+          })
+          .select()
+          .single();
+
+        if (!error && data) {
+          newQR.id = data.id;
+        } else if (error) {
+          console.warn('Error guardando QR en Supabase (se mantiene en local):', error.message);
+        }
+      } catch (err) {
+        console.warn('No se pudo conectar a Supabase para guardar QR:', err);
+      }
+    }
+
+    toast.success('Código QR agregado a la matriz exitosamente');
+    return newQR;
+  };
+
+  const updateFixedAmountQR = async (id: string, updates: Partial<FixedAmountQR>): Promise<void> => {
+    setFixedAmountQRs(prev => {
+      const updated = prev.map(item => {
+        if (item.id === id) {
+          return { ...item, ...updates, updated_at: new Date().toISOString() };
+        }
+        if (updates.is_default && item.id !== id) {
+          return { ...item, is_default: false };
+        }
+        return item;
+      });
+      localStorage.setItem('tacticos_fixed_amount_qrs', JSON.stringify(updated));
+      return updated;
+    });
+
+    const client = supabase;
+    if (client) {
+      try {
+        const payload: any = { updated_at: new Date().toISOString() };
+        if (updates.amount !== undefined) payload.amount = updates.amount;
+        if (updates.qr_image_url !== undefined) payload.qr_image_url = updates.qr_image_url;
+        if (updates.bank_name !== undefined) payload.bank_name = updates.bank_name;
+        if (updates.account_name !== undefined) payload.account_name = updates.account_name;
+        if (updates.is_active !== undefined) payload.is_active = updates.is_active;
+        if (updates.is_default !== undefined) payload.is_default = updates.is_default;
+        if (updates.expiration_years !== undefined) payload.expiration_years = updates.expiration_years;
+        if (updates.notes !== undefined) payload.notes = updates.notes;
+
+        await client.from('fixed_amount_qrs').update(payload).eq('id', id);
+      } catch (err) {
+        console.warn('Error al actualizar QR en Supabase:', err);
+      }
+    }
+
+    toast.success('Código QR actualizado en la matriz');
+  };
+
+  const deleteFixedAmountQR = async (id: string): Promise<boolean> => {
+    setFixedAmountQRs(prev => {
+      const updated = prev.filter(item => item.id !== id);
+      localStorage.setItem('tacticos_fixed_amount_qrs', JSON.stringify(updated));
+      return updated;
+    });
+
+    const client = supabase;
+    if (client) {
+      try {
+        await client.from('fixed_amount_qrs').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Error al eliminar QR en Supabase:', err);
+      }
+    }
+
+    toast.success('Código QR eliminado de la matriz');
+    return true;
+  };
+
+  const toggleFixedAmountQRStatus = async (id: string): Promise<void> => {
+    const target = fixedAmountQRs.find(q => q.id === id);
+    if (!target) return;
+    await updateFixedAmountQR(id, { is_active: !target.is_active });
+  };
+
+  const getQRForAmount = (amount: number): { qr: FixedAmountQR | null; isExactMatch: boolean; isDefault: boolean } => {
+    // 1. Coincidencia exacta con tolerancia de 0.01 centavos
+    const exact = fixedAmountQRs.find(
+      q => q.is_active && q.amount !== null && Math.abs(q.amount - amount) < 0.01
+    );
+    if (exact) {
+      return { qr: exact, isExactMatch: true, isDefault: false };
+    }
+
+    // 2. QR comodín de respaldo (sin monto fijado o marcado como is_default)
+    const defaultQR = fixedAmountQRs.find(
+      q => q.is_active && (q.is_default || q.amount === null || q.amount === 0)
+    );
+    if (defaultQR) {
+      return { qr: defaultQR, isExactMatch: false, isDefault: true };
+    }
+
+    // 3. Cualquier QR activo disponible
+    const anyActive = fixedAmountQRs.find(q => q.is_active);
+    if (anyActive) {
+      return { qr: anyActive, isExactMatch: false, isDefault: anyActive.is_default };
+    }
+
+    return { qr: null, isExactMatch: false, isDefault: false };
   };
 
   const resolveAlert = (id: string) => {
@@ -1389,6 +2023,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setIsDriverAvailable(true);
     setStoreSettings(defaultStoreSettings);
     setCashSettlements([]);
+    setFixedAmountQRs(demoFixedAmountQRs);
     localStorage.removeItem('tacticos_store_categories');
     localStorage.removeItem('tacticos_store_products');
     localStorage.removeItem('tacticos_store_alerts');
@@ -1398,6 +2033,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('tacticos_driver_available');
     localStorage.removeItem('tacticos_store_settings');
     localStorage.removeItem('tacticos_cash_settlements');
+    localStorage.removeItem('tacticos_fixed_amount_qrs');
     toast.info('Datos restaurados a valores de fábrica para Bolivia');
   };
 
@@ -1439,6 +2075,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         getDriverCashOwed,
         submitCashSettlement,
         reviewCashSettlement,
+        fixedAmountQRs,
+        addFixedAmountQR,
+        updateFixedAmountQR,
+        deleteFixedAmountQR,
+        toggleFixedAmountQRStatus,
+        getQRForAmount,
         resolveAlert,
         resetToDefaults,
       }}

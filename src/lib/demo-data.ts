@@ -7,7 +7,7 @@ import type {
   Product, Category, Order, OrderItem, Profile,
   AuditLog, SystemAlert, PaymentVerification, Notification,
   DailySalesSummary, ProductSalesSummary, CategorySalesSummary,
-  ShippingZone, DriverEarning, DriverAvailability
+  ShippingZone, DriverEarning, DriverAvailability, FixedAmountQR
 } from './types';
 
 // ============ CATEGORIES ============
@@ -655,3 +655,80 @@ export const demoCategorySales: CategorySalesSummary[] = demoCategories.map(c =>
   total_sales: Math.round((Math.random() * 10000 + 1000) * 100) / 100,
   order_count: Math.floor(Math.random() * 40 + 5),
 }));
+
+// ============ FIXED AMOUNT QR MATRIX (ImgBB & SUPABASE) ============
+// QRs estáticos pre-generados de 3+ años con monto específico y QR comodín sin monto
+export const demoFixedAmountQRs: FixedAmountQR[] = [
+  {
+    id: 'qr-001',
+    amount: 50.00,
+    qr_image_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=500&auto=format&fit=crop&q=80',
+    bank_name: 'Banco Unión (Simple QR)',
+    account_name: 'Tienda Táctica Bolivia SRL',
+    is_active: true,
+    is_default: false,
+    expiration_years: '3 años',
+    notes: 'QR estático oficial para abonos exactos de Bs. 50.00',
+    created_at: daysAgo(60),
+  },
+  {
+    id: 'qr-002',
+    amount: 100.00,
+    qr_image_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=500&auto=format&fit=crop&q=80',
+    bank_name: 'Banco Unión (Simple QR)',
+    account_name: 'Tienda Táctica Bolivia SRL',
+    is_active: true,
+    is_default: false,
+    expiration_years: '3 años',
+    notes: 'QR estático para órdenes de Bs. 100.00',
+    created_at: daysAgo(60),
+  },
+  {
+    id: 'qr-003',
+    amount: 150.00,
+    qr_image_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=500&auto=format&fit=crop&q=80',
+    bank_name: 'Banco Mercantil Santa Cruz',
+    account_name: 'Tienda Táctica Bolivia SRL',
+    is_active: true,
+    is_default: false,
+    expiration_years: '3 años',
+    notes: 'QR estático para órdenes de Bs. 150.00',
+    created_at: daysAgo(50),
+  },
+  {
+    id: 'qr-004',
+    amount: 200.00,
+    qr_image_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=500&auto=format&fit=crop&q=80',
+    bank_name: 'Banco Nacional de Bolivia (BNB)',
+    account_name: 'Tienda Táctica Bolivia SRL',
+    is_active: true,
+    is_default: false,
+    expiration_years: '3 años',
+    notes: 'QR estático para órdenes de Bs. 200.00',
+    created_at: daysAgo(40),
+  },
+  {
+    id: 'qr-005',
+    amount: 350.00,
+    qr_image_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=500&auto=format&fit=crop&q=80',
+    bank_name: 'Banco de Crédito de Bolivia (BCP)',
+    account_name: 'Tienda Táctica Bolivia SRL',
+    is_active: true,
+    is_default: false,
+    expiration_years: '3 años',
+    notes: 'QR estático para combos y chalecos de Bs. 350.00',
+    created_at: daysAgo(30),
+  },
+  {
+    id: 'qr-default',
+    amount: null,
+    qr_image_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=500&auto=format&fit=crop&q=80',
+    bank_name: 'Simple QR Bolivia (Multibanco)',
+    account_name: 'Tienda Táctica Bolivia SRL',
+    is_active: true,
+    is_default: true,
+    expiration_years: 'Sin expiración (Estático)',
+    notes: 'QR comodín sin monto fijo. Si el total de la orden no coincide con un QR pre-generado, se muestra este QR para que el cliente digite el monto manualmente.',
+    created_at: daysAgo(90),
+  },
+];
