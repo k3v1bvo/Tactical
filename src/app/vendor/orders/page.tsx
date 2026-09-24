@@ -40,6 +40,8 @@ export default function DriverOrdersPage() {
     getDriverCashOwed,
     submitCashSettlement,
     cashSettlements,
+    fixedAmountQRs,
+    getQRForAmount,
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'available' | 'active' | 'history'>('available');
@@ -307,20 +309,67 @@ export default function DriverOrdersPage() {
               </div>
             </div>
 
-            {/* QR Transfer: Upload proof */}
-            {settlementMethod === 'qr_transfer' && (
-              <div className="space-y-3">
-                <label className="text-xs font-mono text-neutral-400 uppercase tracking-wider block">Comprobante de Transferencia (foto)</label>
-                {settlementProofUrl ? (
-                  <div className="relative w-full h-40 rounded-xl overflow-hidden border border-white/[0.08]">
-                    <Image src={settlementProofUrl} alt="Comprobante" fill className="object-contain" sizes="400px" />
-                    <button onClick={() => setSettlementProofUrl('')} className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/70 text-red-400 hover:text-red-300 transition"><X size={14} /></button>
+            {/* QR Transfer: Display Store QR & Upload proof */}
+            {settlementMethod === 'qr_transfer' && (() => {
+              const settlementMatch = getQRForAmount(cashOwed);
+              const storeQR = settlementMatch.qr || fixedAmountQRs.find(q => q.is_active && (q.is_default || q.amount === null)) || fixedAmountQRs[0];
+
+              return (
+                <div className="space-y-4">
+                  {/* QR Oficial Tienda para el Repartidor */}
+                  {storeQR ? (
+                    <div className="p-4 rounded-xl bg-white/[0.03] border border-[#C8A961]/30 text-center space-y-2.5">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="text-[10px] font-mono uppercase text-[#C8A961] tracking-widest font-bold">
+                          {settlementMatch.isExactMatch ? 'QR CON MONTO EXACTO ASIGNADO' : 'QR COMODÍN OFICIAL DE LA TIENDA'}
+                        </span>
+                        {settlementMatch.isExactMatch && (
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono text-[9px] uppercase font-bold">
+                            Monto Bloqueado
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="p-3 bg-white rounded-xl inline-block shadow-xl mx-auto border-2 border-[#C8A961]/40">
+                        <div className="relative w-40 h-40">
+                          <Image
+                            src={storeQR.qr_image_url}
+                            alt="QR de Rendición Tienda Táctica"
+                            fill
+                            className="object-contain"
+                            sizes="160px"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="text-xs text-neutral-300">
+                        Transfiere <strong className="text-amber-300 font-mono font-bold">Bs. {cashOwed.toFixed(2)}</strong> a nombre de <strong className="text-white">{storeQR.account_name || 'Tienda Táctica Bolivia SRL'}</strong>
+                        <div className="text-[11px] text-neutral-400 mt-0.5">Banco: <strong className="text-white">{storeQR.bank_name || 'Simple QR Bolivia'}</strong></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300">
+                      No hay un código QR configurado en la matriz. Contacta a administración o realiza entrega física.
+                    </div>
+                  )}
+
+                  {/* Subir Comprobante */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-mono text-neutral-400 uppercase tracking-wider block">
+                      Comprobante de Transferencia (foto o captura bancaria)
+                    </label>
+                    {settlementProofUrl ? (
+                      <div className="relative w-full h-40 rounded-xl overflow-hidden border border-white/[0.08]">
+                        <Image src={settlementProofUrl} alt="Comprobante" fill className="object-contain" sizes="400px" />
+                        <button onClick={() => setSettlementProofUrl('')} className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/70 text-red-400 hover:text-red-300 transition"><X size={14} /></button>
+                      </div>
+                    ) : (
+                      <ImageUploader onChange={(url: string) => setSettlementProofUrl(url)} />
+                    )}
                   </div>
-                ) : (
-                  <ImageUploader onChange={(url: string) => setSettlementProofUrl(url)} />
-                )}
-              </div>
-            )}
+                </div>
+              );
+            })()}
 
             {/* Notes */}
             <div className="space-y-2">
