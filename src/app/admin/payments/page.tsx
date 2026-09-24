@@ -258,23 +258,30 @@ export default function AdminPaymentsPage() {
   const fetchLiveBankNotifications = async () => {
     setIsLoadingLiveNotifs(true);
     try {
+      const notifBaseUrl = (
+        process.env.NEXT_PUBLIC_NOTIFICATIONS_SUPABASE_URL || 'https://kbybohnmvaayifpzybvs.supabase.co'
+      ).replace(/\/$/, '');
+      const notifAnonKey =
+        process.env.NEXT_PUBLIC_NOTIFICATIONS_SUPABASE_ANON_KEY ||
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtieWJvaG5tdmFheWlmcHp5YnZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNjkwMjMsImV4cCI6MjEwMzg0NTAyM30.Jp9uAneVkaWEoz6OjTKVvTEAFVm3iz5Xws3SiCwAVlg';
+
       const headers = {
-        apikey:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtieWJvaG5tdmFheWlmcHp5YnZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNjkwMjMsImV4cCI6MjEwMzg0NTAyM30.Jp9uAneVkaWEoz6OjTKVvTEAFVm3iz5Xws3SiCwAVlg',
+        apikey: notifAnonKey,
+        Authorization: `Bearer ${notifAnonKey}`,
       };
 
       // Consulta balanceada para capturar BCP, BMSC, BNB, Cripto y comprobantes Gmail de Yape
       const [banksRes, gmailRes, bnbRes] = await Promise.all([
         fetch(
-          'https://kbybohnmvaayifpzybvs.supabase.co/rest/v1/notifications?package_name=in.(com.bcp.bo.wallet,bo.com.bmsc.bancamovil,com.binance.dev,com.tangem.wallet)&order=id.desc&limit=35',
+          `${notifBaseUrl}/rest/v1/notifications?package_name=in.(com.bcp.bo.wallet,bo.com.bmsc.bancamovil,com.binance.dev,com.tangem.wallet)&order=id.desc&limit=35`,
           { headers }
         ),
         fetch(
-          'https://kbybohnmvaayifpzybvs.supabase.co/rest/v1/notifications?package_name=eq.com.google.android.gm&or=(title.ilike.*yape*,content.ilike.*yape*)&order=id.desc&limit=30',
+          `${notifBaseUrl}/rest/v1/notifications?package_name=eq.com.google.android.gm&or=(title.ilike.*yape*,content.ilike.*yape*)&order=id.desc&limit=30`,
           { headers }
         ),
         fetch(
-          'https://kbybohnmvaayifpzybvs.supabase.co/rest/v1/notifications?package_name=like.*bnb*&order=id.desc&limit=15',
+          `${notifBaseUrl}/rest/v1/notifications?package_name=like.*bnb*&order=id.desc&limit=15`,
           { headers }
         ),
       ]);
@@ -1071,7 +1078,7 @@ export default function AdminPaymentsPage() {
               <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-1">
                 <span className="text-[10px] font-mono uppercase text-tactical-500">PROYECTO SUPABASE CONECTADO</span>
                 <div className="text-xs font-mono font-bold text-[#C8A961] truncate">
-                  kbybohnmvaayifpzybvs.supabase.co
+                  {(process.env.NEXT_PUBLIC_NOTIFICATIONS_SUPABASE_URL || 'https://kbybohnmvaayifpzybvs.supabase.co').replace(/^https?:\/\//, '')}
                 </div>
                 <span className="text-[10px] text-emerald-400 flex items-center gap-1">
                   <CheckCircle2 size={11} /> Tabla: public.notifications (Lectura / Actualización RLS)
