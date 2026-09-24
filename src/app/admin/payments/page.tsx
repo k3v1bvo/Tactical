@@ -1313,7 +1313,7 @@ export default function AdminPaymentsPage() {
                   // Cruce inteligente de datos bancarios con órdenes pendientes
                   const matchResult = matchNotificationWithOrders(notif, orders);
                   const pendingOrdersList = orders.filter(
-                    o => o.status === 'pending' || (o as any).status === 'unverified' || o.status === 'processing'
+                    o => o.status === 'pending' || (o as any).status === 'unverified'
                   );
 
                   return (

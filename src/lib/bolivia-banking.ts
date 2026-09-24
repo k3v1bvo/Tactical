@@ -500,7 +500,7 @@ export function matchNotificationWithOrders(
 
   // Filtrar solo órdenes pendientes o no verificadas
   const pendingOrders = orders.filter(
-    o => o.status === 'pending' || (o as any).status === 'unverified' || o.status === 'processing'
+    o => o.status === 'pending' || (o as any).status === 'unverified'
   );
 
   for (const order of pendingOrders) {

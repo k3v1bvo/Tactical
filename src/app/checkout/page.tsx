@@ -96,6 +96,8 @@ export default function CheckoutPage() {
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [receiptUrl, setReceiptUrl] = useState<string>('');
   const [receiptUploaded, setReceiptUploaded] = useState<boolean>(false);
+  const [isVerifyingReceipt, setIsVerifyingReceipt] = useState<boolean>(false);
+  const [aiVerificationResult, setAiVerificationResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Financial calculations in Bolivianos (Bs.)
@@ -290,15 +292,47 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleConfirmReceipt = () => {
+  const handleConfirmReceipt = async () => {
     if (!receiptUrl) {
       toast.error('Por favor sube la captura de tu transferencia QR');
       return;
     }
-    setReceiptUploaded(true);
-    toast.success('¡Comprobante QR registrado!', {
-      description: 'El comando de almacén validará la acreditación bancaria.',
-    });
+
+    setIsVerifyingReceipt(true);
+    try {
+      const res = await fetch('/api/verify-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiptUrl,
+          expectedAmount: amountToPayNow,
+          customerName,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.extracted) {
+        setAiVerificationResult(data);
+        setReceiptUploaded(true);
+        if (data.isReconciled) {
+          toast.success('¡Comprobante verificado con IA y conciliado con el banco!', {
+            description: `Emisor: ${data.extracted.senderName || 'Detectado'} • Bs. ${(data.extracted.amount || amountToPayNow).toFixed(2)}`,
+          });
+        } else {
+          toast.success('¡Comprobante analizado con IA con éxito!', {
+            description: `Emisor detectado: ${data.extracted.senderName || 'Verificado'} • Bs. ${(data.extracted.amount || amountToPayNow).toFixed(2)}`,
+          });
+        }
+      } else {
+        setReceiptUploaded(true);
+        toast.info('Comprobante registrado. El comando validará la acreditación manual.');
+      }
+    } catch (err) {
+      setReceiptUploaded(true);
+      toast.info('Comprobante registrado en la orden para revisión táctica.');
+    } finally {
+      setIsVerifyingReceipt(false);
+    }
   };
 
   // POST-CREATION / CONFIRMATION VIEW
@@ -514,15 +548,76 @@ export default function CheckoutPage() {
                       <button
                         type="button"
                         onClick={handleConfirmReceipt}
-                        className="btn-tactical w-full mt-3 flex items-center justify-center gap-2 text-sm"
+                        disabled={isVerifyingReceipt}
+                        className="btn-tactical w-full mt-3 flex items-center justify-center gap-2 text-sm shadow-lg shadow-[#C8A961]/20 disabled:opacity-50"
                       >
-                        <CheckCircle2 size={16} /> Enviar Comprobante para Verificación
+                        {isVerifyingReceipt ? (
+                          <>
+                            <RefreshCw size={16} className="animate-spin text-[#C8A961]" />
+                            <span>Analizando Comprobante con IA Táctica...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={16} className="text-[#C8A961]" />
+                            <span>Verificar Comprobante con Inteligencia Artificial</span>
+                          </>
+                        )}
                       </button>
                     )}
 
                     {receiptUploaded && (
-                      <div className="mt-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-2 text-xs text-emerald-400">
-                        <CheckCircle2 size={16} /> Comprobante registrado. El comando validará la acreditación.
+                      <div className="mt-3 space-y-2 text-left">
+                        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5 text-xs text-emerald-400">
+                          <CheckCircle2 size={18} className="flex-shrink-0 mt-0.5 text-emerald-400" />
+                          <div>
+                            <strong className="block text-white font-bold mb-0.5">
+                              {aiVerificationResult?.isReconciled
+                                ? '¡Pago 100% Conciliado con la Notificación Bancaria!'
+                                : 'Comprobante Analizado y Registrado por IA'}
+                            </strong>
+                            <p className="text-neutral-300 text-[11px] leading-relaxed">
+                              {aiVerificationResult?.message ||
+                                'Comprobante registrado. El comando de almacén validará la acreditación.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {aiVerificationResult?.extracted && (
+                          <div className="p-3 rounded-xl bg-black/40 border border-white/[0.08] text-[11px] font-mono grid grid-cols-2 gap-2">
+                            {aiVerificationResult.extracted.senderName && (
+                              <div>
+                                <span className="text-neutral-500 block text-[9px] uppercase">Emisor Detectado</span>
+                                <span className="text-white font-bold truncate block">
+                                  {aiVerificationResult.extracted.senderName}
+                                </span>
+                              </div>
+                            )}
+                            {aiVerificationResult.extracted.amount && (
+                              <div>
+                                <span className="text-neutral-500 block text-[9px] uppercase">Monto en Comprobante</span>
+                                <span className="text-emerald-400 font-bold block">
+                                  Bs. {aiVerificationResult.extracted.amount.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                            {aiVerificationResult.extracted.bankName && (
+                              <div>
+                                <span className="text-neutral-500 block text-[9px] uppercase">Banco / App</span>
+                                <span className="text-neutral-300 block truncate">
+                                  {aiVerificationResult.extracted.bankName}
+                                </span>
+                              </div>
+                            )}
+                            {aiVerificationResult.extracted.transactionRef && (
+                              <div>
+                                <span className="text-neutral-500 block text-[9px] uppercase">Nº Operación</span>
+                                <span className="text-[#C8A961] block truncate">
+                                  {aiVerificationResult.extracted.transactionRef}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
