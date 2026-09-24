@@ -33,8 +33,10 @@ import {
 } from 'lucide-react';
 import {
   parseBankNotification,
+  matchNotificationWithOrders,
   BOLIVIA_PACKAGE_REGISTRY,
   type DetectedBankNotification,
+  type ReconciliationMatch,
 } from '@/lib/bolivia-banking';
 import { toast } from 'sonner';
 import type {
@@ -1308,22 +1310,20 @@ export default function AdminPaymentsPage() {
                   return true;
                 })
                 .map(notif => {
-                  // Check if this notification matches any pending order by amount
-                  const pendingMatchingOrder =
-                    notif.extracted_amount && notif.extracted_amount > 0
-                      ? orders.find(
-                          o =>
-                            (o.status === 'pending' || (o as any).status === 'unverified') &&
-                            Math.abs(o.total - (notif.extracted_amount || 0)) < 0.05
-                        )
-                      : null;
+                  // Cruce inteligente de datos bancarios con órdenes pendientes
+                  const matchResult = matchNotificationWithOrders(notif, orders);
+                  const pendingOrdersList = orders.filter(
+                    o => o.status === 'pending' || (o as any).status === 'unverified' || o.status === 'processing'
+                  );
 
                   return (
                     <div
                       key={notif.id}
                       className={`p-4 rounded-xl border transition space-y-3 ${
                         notif.is_payment
-                          ? 'bg-purple-950/10 border-purple-500/30'
+                          ? matchResult && matchResult.score >= 70
+                            ? 'bg-emerald-950/15 border-emerald-500/40 shadow-lg shadow-emerald-500/5'
+                            : 'bg-purple-950/10 border-purple-500/30'
                           : notif.is_promotional
                           ? 'bg-white/[0.01] border-white/[0.04] opacity-60'
                           : 'bg-white/[0.02] border-white/[0.06]'
@@ -1368,62 +1368,124 @@ export default function AdminPaymentsPage() {
                         </p>
                       </div>
 
-                      {/* Extracted Payment Metrics */}
+                      {/* Extracted Payment Metrics & Intelligent Cross-Matching */}
                       {notif.is_payment && (
-                        <div className="pt-2 border-t border-white/[0.06] flex flex-wrap items-center justify-between gap-3 bg-black/30 p-2.5 rounded-lg">
-                          <div className="flex items-center gap-4 flex-wrap">
-                            {notif.extracted_amount !== null && (
-                              <div>
-                                <span className="text-[10px] uppercase font-mono text-tactical-500 block">
-                                  Monto Detectado
-                                </span>
-                                <span className="text-base font-mono font-black text-emerald-400">
-                                  Bs. {notif.extracted_amount.toFixed(2)}
-                                </span>
-                              </div>
-                            )}
+                        <div className="pt-2 border-t border-white/[0.06] space-y-2.5 bg-black/30 p-3 rounded-lg">
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div className="flex items-center gap-4 flex-wrap">
+                              {notif.extracted_amount !== null && (
+                                <div>
+                                  <span className="text-[10px] uppercase font-mono text-tactical-500 block">
+                                    Monto Detectado
+                                  </span>
+                                  <span className="text-base font-mono font-black text-emerald-400">
+                                    Bs. {notif.extracted_amount.toFixed(2)}
+                                  </span>
+                                </div>
+                              )}
 
-                            {notif.client_name && (
-                              <div>
-                                <span className="text-[10px] uppercase font-mono text-tactical-500 block">
-                                  Cliente / Depositante
-                                </span>
-                                <span className="text-xs font-semibold text-white">
-                                  {notif.client_name}
-                                </span>
-                              </div>
-                            )}
+                              {notif.client_name && (
+                                <div>
+                                  <span className="text-[10px] uppercase font-mono text-tactical-500 block">
+                                    Depositante en Banco
+                                  </span>
+                                  <span className="text-xs font-semibold text-white">
+                                    {notif.client_name}
+                                  </span>
+                                </div>
+                              )}
 
-                            {notif.transaction_ref && (
-                              <div>
-                                <span className="text-[10px] uppercase font-mono text-tactical-500 block">
-                                  Nº Transacción
-                                </span>
-                                <span className="text-xs font-mono text-[#C8A961]">
-                                  {notif.transaction_ref}
+                              {notif.transaction_ref && (
+                                <div>
+                                  <span className="text-[10px] uppercase font-mono text-tactical-500 block">
+                                    Nº Transacción
+                                  </span>
+                                  <span className="text-xs font-mono text-[#C8A961]">
+                                    {notif.transaction_ref}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Intelligent Match Score Badge */}
+                            {matchResult && (
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase border flex items-center gap-1.5 ${
+                                    matchResult.score >= 70
+                                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                                      : matchResult.score >= 45
+                                      ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                                      : 'bg-neutral-500/20 border-neutral-500/40 text-neutral-300'
+                                  }`}
+                                >
+                                  <ShieldCheck size={12} />
+                                  {matchResult.score}% Certeza de Cruce
                                 </span>
                               </div>
                             )}
                           </div>
 
-                          {/* Matching action if order matches */}
-                          {pendingMatchingOrder ? (
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] text-[#C8A961] font-semibold flex items-center gap-1">
-                                <CheckCircle2 size={13} /> Coincide con Orden #{pendingMatchingOrder.id.toUpperCase()}
-                              </span>
-                              <button
-                                onClick={() => handleAcreditarOrden(pendingMatchingOrder.id, notif)}
-                                className="btn-tactical text-xs py-1.5 px-3 flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold"
-                              >
-                                <Check size={13} /> Cruzar y Acreditar
-                              </button>
+                          {/* Match Reasons Pill List */}
+                          {matchResult && matchResult.reasons.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {matchResult.reasons.map((r, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.08] text-neutral-300 font-mono"
+                                >
+                                  ✓ {r}
+                                </span>
+                              ))}
                             </div>
-                          ) : notif.extracted_amount ? (
-                            <span className="text-[10px] font-mono text-tactical-500">
-                              (Sin orden pendiente por Bs. {notif.extracted_amount.toFixed(2)})
-                            </span>
-                          ) : null}
+                          )}
+
+                          {/* Action Bar: Auto Match vs Manual Match Dropdown */}
+                          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/[0.06]">
+                            {matchResult ? (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs text-[#C8A961] font-semibold flex items-center gap-1">
+                                  <CheckCircle2 size={14} className="text-emerald-400" /> Coincide con Orden #{matchResult.orderId.toUpperCase()} ({matchResult.customerName})
+                                </span>
+                                <button
+                                  onClick={() => handleAcreditarOrden(matchResult.orderId, notif)}
+                                  className="btn-tactical text-xs py-1.5 px-3.5 flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold shadow-lg shadow-emerald-500/20"
+                                >
+                                  <Check size={14} /> Cruzar y Acreditar #{matchResult.orderId.toUpperCase()}
+                                </button>
+                              </div>
+                            ) : notif.extracted_amount ? (
+                              <span className="text-[10px] font-mono text-tactical-500">
+                                Sin coincidencia automática exacta para Bs. {notif.extracted_amount.toFixed(2)}
+                              </span>
+                            ) : null}
+
+                            {/* Manual Link Dropdown in case relative/family paid */}
+                            {pendingOrdersList.length > 0 && (
+                              <div className="flex items-center gap-2 ml-auto">
+                                <span className="text-[10px] text-neutral-400 font-mono">
+                                  ¿Pagó con otra cuenta?:
+                                </span>
+                                <select
+                                  defaultValue=""
+                                  onChange={e => {
+                                    if (e.target.value) {
+                                      handleAcreditarOrden(e.target.value, notif);
+                                      e.target.value = '';
+                                    }
+                                  }}
+                                  className="input-tactical py-1 px-2 text-[11px] w-auto max-w-[220px]"
+                                >
+                                  <option value="">Vincular a orden manual...</option>
+                                  {pendingOrdersList.map(o => (
+                                    <option key={o.id} value={o.id}>
+                                      #{o.id.toUpperCase()} • {o.customer_name || 'Cliente'} (Bs. {o.total.toFixed(2)})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
 

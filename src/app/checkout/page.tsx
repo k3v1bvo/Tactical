@@ -416,6 +416,10 @@ export default function CheckoutPage() {
                           <span>•</span>
                           <span>Abono requerido: <strong className="text-amber-400 font-mono font-bold">Bs. {amountToPayNow.toFixed(2)}</strong></span>
                         </div>
+                        <div className="text-[11px] text-amber-200/90 mt-2 p-2 rounded-lg bg-black/40 border border-amber-500/20 flex items-start gap-1.5">
+                          <span className="text-amber-400">💡</span>
+                          <span><strong>Validación Automática Inmediata:</strong> Al transferir en tu banco o Yape, en el campo <u>Motivo / Glosa</u> escribe: <strong className="text-white">{customerName ? customerName.split(' ')[0] : 'tu nombre'}</strong> para que nuestro sistema verifique tu pago en segundos.</span>
+                        </div>
                       </div>
                     </div>
                   )}

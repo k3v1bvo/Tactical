@@ -435,3 +435,175 @@ export function parseBankNotification(raw: {
     crypto_currency: cryptoCurrency,
   };
 }
+
+/**
+ * Resultado de cruce de datos entre Notificación Bancaria y Órdenes de la Tienda
+ */
+export interface ReconciliationMatch {
+  orderId: string;
+  orderTotal: number;
+  customerName: string;
+  customerPhone?: string;
+  score: number; // 0 a 100
+  confidence: 'high' | 'medium' | 'low';
+  reasons: string[];
+  matchedAmount: number;
+  isPartialDeposit: boolean;
+}
+
+/**
+ * Normaliza cadenas de texto para comparación fonética/lexical en Bolivia
+ * (remueve tildes, signos y pasa a mayúsculas)
+ */
+function cleanTextForMatching(str: string): string {
+  return (str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, ' ')
+    .trim();
+}
+
+/**
+ * Algoritmo Táctico de Cruce Bancario:
+ * Cruza Monto (100% o 50%), Nombre del Cliente, Glosa/Nº de Orden, Teléfono y Ventana Horaria.
+ */
+export function matchNotificationWithOrders(
+  notif: DetectedBankNotification,
+  orders: Array<{
+    id: string;
+    total: number;
+    status: string;
+    customer_name?: string;
+    customer_phone?: string;
+    payment_mode?: string;
+    created_at: string;
+  }>
+): ReconciliationMatch | null {
+  if (!notif.is_payment || !notif.extracted_amount || notif.extracted_amount <= 0) {
+    return null;
+  }
+
+  const notifAmount = notif.extracted_amount;
+  const notifTime = new Date(notif.created_at).getTime();
+  const notifTextClean = cleanTextForMatching(`${notif.title} ${notif.content} ${notif.client_name || ''}`);
+  const notifClientClean = cleanTextForMatching(notif.client_name || '');
+
+  // Palabras significativas del depositante en banco (más de 2 letras y no artículos comunes)
+  const stopWords = new Set(['DE', 'DEL', 'LA', 'LOS', 'LAS', 'SAN', 'SANTO', 'QR', 'YAPE', 'BANCO']);
+  const notifClientWords = notifClientClean
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !stopWords.has(w));
+
+  let bestMatch: ReconciliationMatch | null = null;
+  let highestScore = 0;
+
+  // Filtrar solo órdenes pendientes o no verificadas
+  const pendingOrders = orders.filter(
+    o => o.status === 'pending' || (o as any).status === 'unverified' || o.status === 'processing'
+  );
+
+  for (const order of pendingOrders) {
+    let score = 0;
+    const reasons: string[] = [];
+    let isPartial = false;
+    let matchedAmount = order.total;
+
+    // 1. Verificación de Monto (Total o 50% anticipo)
+    const exactTotalMatch = Math.abs(order.total - notifAmount) < 0.15;
+    const halfTotal = order.total * 0.5;
+    const exactHalfMatch = Math.abs(halfTotal - notifAmount) < 0.15;
+
+    if (exactTotalMatch) {
+      score += 45;
+      matchedAmount = order.total;
+      reasons.push(`Monto exacto del 100% (Bs. ${order.total.toFixed(2)})`);
+    } else if (exactHalfMatch || order.payment_mode === 'partial_payment') {
+      if (exactHalfMatch) {
+        score += 45;
+        isPartial = true;
+        matchedAmount = halfTotal;
+        reasons.push(`Anticipo exacto del 50% (Bs. ${halfTotal.toFixed(2)})`);
+      }
+    } else {
+      // Si el monto no coincide en nada, la probabilidad es casi nula
+      continue;
+    }
+
+    // 2. Coincidencia de Nombre (Fuzzy Word Match)
+    if (order.customer_name && notifClientWords.length > 0) {
+      const orderCustomerClean = cleanTextForMatching(order.customer_name);
+      const orderWords = orderCustomerClean
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !stopWords.has(w));
+
+      let matchedWords = 0;
+      for (const w of orderWords) {
+        if (notifClientWords.some(nw => nw === w || nw.includes(w) || w.includes(nw))) {
+          matchedWords++;
+        }
+      }
+
+      if (matchedWords >= 2) {
+        score += 35;
+        reasons.push(`Nombre y apellido coinciden (${matchedWords} palabras: ${order.customer_name})`);
+      } else if (matchedWords === 1) {
+        score += 20;
+        reasons.push(`Coincidencia de nombre/apellido parcial: ${order.customer_name}`);
+      }
+    }
+
+    // 3. ID de Orden en la Glosa / Descripción de la notificación
+    const cleanOrderId = order.id.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const shortOrderId = cleanOrderId.length > 5 ? cleanOrderId.slice(-5) : cleanOrderId;
+    if (notifTextClean.includes(cleanOrderId) || (shortOrderId.length >= 4 && notifTextClean.includes(shortOrderId))) {
+      score += 35;
+      reasons.push(`Código de orden #${order.id.toUpperCase()} presente en la glosa bancaria`);
+    }
+
+    // 4. Coincidencia de Teléfono Celular (últimos 6-8 dígitos)
+    if (order.customer_phone) {
+      const cleanPhone = order.customer_phone.replace(/[^0-9]/g, '');
+      const lastDigits = cleanPhone.slice(-6);
+      if (lastDigits.length >= 6 && notif.content.includes(lastDigits)) {
+        score += 20;
+        reasons.push(`Teléfono del cliente (${lastDigits}) presente en notificación`);
+      }
+    }
+
+    // 5. Ventana de Tiempo (Cercanía horaria entre la orden y el abono)
+    const orderTime = new Date(order.created_at).getTime();
+    if (!isNaN(orderTime) && !isNaN(notifTime)) {
+      const diffHours = Math.abs(notifTime - orderTime) / (1000 * 60 * 60);
+      if (diffHours <= 2) {
+        score += 15;
+        reasons.push('Notificación bancaria recibida en la misma ventana horaria (< 2 horas)');
+      } else if (diffHours <= 24) {
+        score += 8;
+        reasons.push('Pago realizado el mismo día de la orden');
+      }
+    }
+
+    // Determinar nivel de confianza
+    const confidence: 'high' | 'medium' | 'low' =
+      score >= 70 ? 'high' : score >= 45 ? 'medium' : 'low';
+
+    if (score > highestScore) {
+      highestScore = score;
+      bestMatch = {
+        orderId: order.id,
+        orderTotal: order.total,
+        customerName: order.customer_name || 'Cliente',
+        customerPhone: order.customer_phone,
+        score: Math.min(score, 100),
+        confidence,
+        reasons,
+        matchedAmount,
+        isPartialDeposit: isPartial,
+      };
+    }
+  }
+
+  return bestMatch;
+}
+
