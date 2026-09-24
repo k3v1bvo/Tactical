@@ -12,7 +12,7 @@ function getEnv(key: string): string {
   const envFiles = ['.env.local', '.env'];
   for (const filename of envFiles) {
     try {
-      const envPath = path.join(process.cwd(), filename);
+      const envPath = path.join(/*turbopackIgnore: true*/ process.cwd(), filename);
       if (fs.existsSync(envPath)) {
         const content = fs.readFileSync(envPath, 'utf-8');
         const lines = content.split(/\r?\n/);
