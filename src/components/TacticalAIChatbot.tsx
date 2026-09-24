@@ -56,13 +56,13 @@ function renderMarkdown(text: string): React.ReactNode {
       return;
     }
 
-    // Bullet point: "- texto" or "• texto"
-    if (/^[-•]\s+/.test(trimmed)) {
-      const content = trimmed.replace(/^[-•]\s+/, '');
+    // Bullet point: "- texto", "• texto", "▪ texto" or "* texto"
+    if (/^[-•▪*]\s+/.test(trimmed)) {
+      const content = trimmed.replace(/^[-•▪*]\s+/, '');
       elements.push(
-        <div key={i} className="flex gap-2 items-start">
-          <span className="text-[#C8A961] mt-0.5 flex-shrink-0">▪</span>
-          <span>{inlineBold(content)}</span>
+        <div key={i} className="flex gap-2 items-start pl-0.5">
+          <span className="text-[#C8A961] mt-0.5 flex-shrink-0 text-[10px]">▪</span>
+          <span className="flex-1">{inlineBold(content)}</span>
         </div>
       );
       return;
@@ -134,9 +134,9 @@ export function TacticalAIChatbot() {
     {
       id: 'msg-init',
       sender: 'assistant',
-      text: 'Operador en línea. Soy **KILO-9**, el asistente de inteligencia artificial militar de Tienda Táctica Cochabamba.\n\nPuedo recomendarte equipamiento con stock real, cotizar envíos en Cochabamba y a toda Bolivia, o rastrear el estado de tu orden.',
+      text: 'Operador en línea. Soy **KILO-9**, el asistente de inteligencia artificial militar de Tienda Táctica Cochabamba.\n\nPuedo cotizar despachos inmediatos en Cercado, provincias (**Cliza, Punata, Tarata, Chapare**) y a toda Bolivia, recomendar equipamiento táctico balístico con stock real, o rastrear tu orden.',
       timestamp: '09:00',
-      quickActions: ['🛡️ Chaleco Nivel IV', '🥾 Botas Vibram', '📦 Envíos Cochabamba', '💳 Pago 50/50 y Regalo QR', '🔍 Rastrear Orden'],
+      quickActions: ['🛡️ Chaleco Nivel IV', '🥾 Botas Vibram', '🚚 Envíos Provincias (Cliza, etc.)', '📦 Envíos Cochabamba', '💳 Pago 50/50 y Regalo QR', '🔍 Rastrear Orden'],
     },
   ]);
 
@@ -307,9 +307,9 @@ export function TacticalAIChatbot() {
       {
         id: `msg-${Date.now()}`,
         sender: 'assistant',
-        text: 'Frecuencia táctica reiniciada. Centro de Mando Heroínas #560 en línea. ¿Qué equipamiento o zona de despacho deseas consultar?',
+        text: 'Frecuencia táctica reiniciada. Centro de Mando Heroínas #560 en línea. ¿Qué equipamiento o zona de despacho (Cochabamba, Cliza, provincias o nacional) deseas consultar?',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        quickActions: ['🛡️ Chalecos Balísticos', '🥾 Botas Vibram', '🎯 Miras Holográficas', '📦 Envíos Cochabamba'],
+        quickActions: ['🛡️ Chalecos Balísticos', '🥾 Botas Vibram', '🚚 Envíos Provincias (Cliza, etc.)', '📦 Envíos Cochabamba', '💳 Pago 50/50 QR'],
       },
     ]);
   };
@@ -410,6 +410,7 @@ export function TacticalAIChatbot() {
             {[
               { label: '🛡️ Balística', query: 'Muéstrame los chalecos balísticos Nivel IV' },
               { label: '🥾 Botas', query: 'Detalles de las botas tácticas Vibram' },
+              { label: '🚚 Cliza / Provincias', query: '¿Hacen envíos a Cliza y Valle Alto?' },
               { label: '🎯 Óptica', query: 'Miras holográficas EOTech' },
               { label: '📦 Envíos', query: '¿Cómo es el envío en Cochabamba y Bolivia?' },
               { label: '💳 Pagos 50/50', query: '¿Cómo funciona el pago 50% y el regalo QR?' },
