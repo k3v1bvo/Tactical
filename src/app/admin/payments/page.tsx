@@ -29,8 +29,13 @@ import {
   HelpCircle,
   Sparkles,
 } from 'lucide-react';
+import {
+  parseBankNotification,
+  BOLIVIA_PACKAGE_REGISTRY,
+  type DetectedBankNotification,
+} from '@/lib/bolivia-banking';
 import { toast } from 'sonner';
-import type { PaymentStatus, PaymentVerification, FixedAmountQR } from '@/lib/types';
+import type { PaymentStatus, PaymentVerification, FixedAmountQR, Order } from '@/lib/types';
 
 const statusConfig: Record<PaymentStatus, { label: string; badge: string; icon: typeof Clock }> = {
   pending: { label: 'Pendiente', badge: 'badge-pending', icon: Clock },
@@ -53,6 +58,8 @@ const BOLIVIA_BANK_PRESETS = [
 
 export default function AdminPaymentsPage() {
   const {
+    orders,
+    adminSetOrderStatus,
     fixedAmountQRs,
     addFixedAmountQR,
     updateFixedAmountQR,
@@ -64,6 +71,13 @@ export default function AdminPaymentsPage() {
   const [activeTab, setActiveTab] = useState<'matrix' | 'verifications' | 'simulator' | 'mobile'>('matrix');
   const [payments, setPayments] = useState<PaymentVerification[]>(demoPayments);
   const [selectedReceipt, setSelectedReceipt] = useState<{ id: string; url: string; orderId: string } | null>(null);
+
+  // Live Bank Notifications Feed from Supabase (NotofocacionS app)
+  const [liveBankNotifications, setLiveBankNotifications] = useState<DetectedBankNotification[]>([]);
+  const [isLoadingLiveNotifs, setIsLoadingLiveNotifs] = useState(false);
+  const [liveFilter, setLiveFilter] = useState<
+    'payments' | 'all' | 'yape' | 'gmail' | 'bmsc' | 'bnb' | 'crypto'
+  >('payments');
 
   // Search & Filter in QR Matrix
   const [searchQuery, setSearchQuery] = useState('');
@@ -127,6 +141,67 @@ export default function AdminPaymentsPage() {
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copiado al portapapeles`);
+  };
+
+  // Fetch live notifications from Supabase NotofocacionS
+  const fetchLiveBankNotifications = async () => {
+    setIsLoadingLiveNotifs(true);
+    try {
+      const headers = {
+        apikey:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtieWJvaG5tdmFheWlmcHp5YnZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNjkwMjMsImV4cCI6MjEwMzg0NTAyM30.Jp9uAneVkaWEoz6OjTKVvTEAFVm3iz5Xws3SiCwAVlg',
+      };
+
+      // Consulta balanceada para capturar BCP, BMSC, BNB, Cripto y comprobantes Gmail de Yape
+      const [banksRes, gmailRes, bnbRes] = await Promise.all([
+        fetch(
+          'https://kbybohnmvaayifpzybvs.supabase.co/rest/v1/notifications?package_name=in.(com.bcp.bo.wallet,bo.com.bmsc.bancamovil,com.binance.dev,com.tangem.wallet)&order=id.desc&limit=35',
+          { headers }
+        ),
+        fetch(
+          'https://kbybohnmvaayifpzybvs.supabase.co/rest/v1/notifications?package_name=eq.com.google.android.gm&or=(title.ilike.*yape*,content.ilike.*yape*)&order=id.desc&limit=30',
+          { headers }
+        ),
+        fetch(
+          'https://kbybohnmvaayifpzybvs.supabase.co/rest/v1/notifications?package_name=like.*bnb*&order=id.desc&limit=15',
+          { headers }
+        ),
+      ]);
+
+      const [banksData, gmailData, bnbData] = await Promise.all([
+        banksRes.ok ? banksRes.json() : [],
+        gmailRes.ok ? gmailRes.json() : [],
+        bnbRes.ok ? bnbRes.json() : [],
+      ]);
+
+      const merged = [...banksData, ...gmailData, ...bnbData].sort((a: any, b: any) => b.id - a.id);
+      const parsed: DetectedBankNotification[] = merged.map((item: any) => parseBankNotification(item));
+      setLiveBankNotifications(parsed);
+      toast.success(`Feed sincronizado: ${parsed.length} notificaciones bancarias obtenidas`);
+    } catch (err) {
+      console.warn('Error al consultar notificaciones en Supabase:', err);
+      toast.error('Error de conexión con la base de datos de notificaciones');
+    } finally {
+      setIsLoadingLiveNotifs(false);
+    }
+  };
+
+  // Auto-cargar al entrar a la pestaña móvil
+  React.useEffect(() => {
+    if (activeTab === 'mobile' && liveBankNotifications.length === 0) {
+      fetchLiveBankNotifications();
+    }
+  }, [activeTab]);
+
+  const handleAcreditarOrden = (orderId: string, notif: DetectedBankNotification) => {
+    adminSetOrderStatus(
+      orderId,
+      'paid',
+      `Pago acreditado automáticamente vía ${notif.bank_name}. Cliente: ${notif.client_name || 'Desconocido'} • Monto: Bs. ${(notif.extracted_amount || 0).toFixed(2)}${notif.transaction_ref ? ` • Tx: ${notif.transaction_ref}` : ''}`
+    );
+    toast.success(`¡Orden ${orderId.toUpperCase()} acreditada como PAGADA!`, {
+      description: `Monto Bs. ${(notif.extracted_amount || 0).toFixed(2)} conciliado con notificación de ${notif.bank_name}.`,
+    });
   };
 
   // Open Create Modal
@@ -843,26 +918,40 @@ export default function AdminPaymentsPage() {
 
       {/* TAB 4: INTEGRACIÓN CON APP CELULAR NOTOFOCACIONS */}
       {activeTab === 'mobile' && (
-        <div className="space-y-6 animate-fade-in max-w-3xl">
+        <div className="space-y-6 animate-fade-in">
+          {/* Header Card */}
           <div className="glass-card-static p-6 border border-white/[0.08] space-y-4">
-            <div className="flex items-center gap-2">
-              <Smartphone size={18} className="text-[#C8A961]" />
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                Captura de Notificaciones Bancarias Android
-              </h2>
-            </div>
-            <p className="text-xs text-tactical-400 leading-relaxed">
-              La app Android (<strong className="text-white">NotofocacionS</strong>) corre en el celular comercial de la tienda, lee los avisos bancarios en la barra de notificaciones (Yape, Plin, Banco Unión, BCP, BNB) y los sube a la tabla <code className="text-[#C8A961]">notifications</code> en Supabase en tiempo real.
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Smartphone size={20} className="text-[#C8A961]" />
+                <div>
+                  <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+                    Reconocimiento & Detección de Bancas Bolivianas (NotofocacionS)
+                  </h2>
+                  <span className="text-[11px] text-tactical-400">
+                    Captura automática desde la app móvil en tiempo real hacia Supabase
+                  </span>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={fetchLiveBankNotifications}
+                disabled={isLoadingLiveNotifs}
+                className="btn-tactical text-xs py-2 px-3.5 flex items-center gap-2 self-start sm:self-auto"
+              >
+                <RefreshCw size={13} className={isLoadingLiveNotifs ? 'animate-spin text-[#C8A961]' : ''} />
+                {isLoadingLiveNotifs ? 'Consultando Supabase...' : 'Sincronizar Feed de Notificaciones'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-1">
                 <span className="text-[10px] font-mono uppercase text-tactical-500">PROYECTO SUPABASE CONECTADO</span>
                 <div className="text-xs font-mono font-bold text-[#C8A961] truncate">
                   kbybohnmvaayifpzybvs.supabase.co
                 </div>
                 <span className="text-[10px] text-emerald-400 flex items-center gap-1">
-                  <CheckCircle2 size={11} /> Tabla: public.notifications
+                  <CheckCircle2 size={11} /> Tabla: public.notifications (Lectura / Actualización RLS)
                 </span>
               </div>
 
@@ -870,55 +959,371 @@ export default function AdminPaymentsPage() {
                 <span className="text-[10px] font-mono uppercase text-tactical-500">ESTADO DEL SERVICIO MÓVIL</span>
                 <div className="text-xs font-bold text-white flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Capturador Foreground Activo
+                  Capturador Foreground Activo en Teléfono
                 </div>
-                <span className="text-[10px] text-tactical-400">Verificador de Pagos QR Conectado</span>
+                <span className="text-[10px] text-tactical-400">
+                  {liveBankNotifications.length > 0
+                    ? `${liveBankNotifications.length} notificaciones bancarias analizadas`
+                    : 'Listo para recibir transacciones'}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Reconciliation Logic */}
-          <div className="glass-card-static p-6 border border-white/[0.08] space-y-4">
-            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[#C8A961]">
-              Flujo de Conciliación Automática
-            </h3>
+          {/* Resumen Oficial de Bancas Detectadas */}
+          <div className="glass-card-static p-5 border border-white/[0.08] space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={16} className="text-[#C8A961]" />
+                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+                  Resumen de Apps Bancarias y Financieras Detectadas
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono text-tactical-500 uppercase">
+                Mapeo de Paquetes Android
+              </span>
+            </div>
 
-            <div className="space-y-3 text-xs">
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <div className="w-6 h-6 rounded-full bg-[#C8A961]/20 text-[#C8A961] font-mono font-bold flex items-center justify-center flex-shrink-0">
-                  1
-                </div>
-                <div>
-                  <div className="font-semibold text-white">El cliente escanea el QR en su app bancaria</div>
-                  <p className="text-tactical-400 mt-0.5">
-                    Transfiere el monto exacto (Bs. X) y su banco envía la confirmación al celular de la tienda.
-                  </p>
-                </div>
+            <div className="overflow-x-auto">
+              <table className="table-tactical text-xs">
+                <thead>
+                  <tr>
+                    <th>App / Servicio</th>
+                    <th>Nombre de Paquete (package_name)</th>
+                    <th>Estado en Base de Datos</th>
+                    <th>Tipo de Notificaciones / Acción del Parser</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+                        <span className="font-bold text-white">Yape Bolivia / BCP</span>
+                      </div>
+                    </td>
+                    <td>
+                      <code className="text-[#C8A961] font-mono text-[11px]">com.bcp.bo.wallet</code>
+                    </td>
+                    <td>
+                      <span className="badge badge-verified text-[10px]">Activo (29+ registros)</span>
+                    </td>
+                    <td className="text-tactical-300">
+                      <strong>Pagos QR recibidos</strong> con monto y nombre del pagador. El parser extrae automáticamente <span className="text-emerald-400 font-mono font-bold">Bs. XX.XX</span> y el nombre del cliente.
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                        <span className="font-bold text-white">Banco Mercantil Santa Cruz</span>
+                      </div>
+                    </td>
+                    <td>
+                      <code className="text-tactical-300 font-mono text-[11px]">bo.com.bmsc.bancamovil</code>
+                    </td>
+                    <td>
+                      <span className="badge badge-pending text-[10px]">Activo (4 registros)</span>
+                    </td>
+                    <td className="text-tactical-400">
+                      Notificaciones promocionales / sorteos de saldo. <span className="text-amber-400">Filtradas automáticamente</span> para evitar falsas confirmaciones de pago.
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                        <span className="font-bold text-white">BNB (Banco Nacional de Bolivia)</span>
+                      </div>
+                    </td>
+                    <td>
+                      <code className="text-tactical-300 font-mono text-[11px]">com.bnb.bancamovil / com.bnb...</code>
+                    </td>
+                    <td>
+                      <span className="px-2 py-0.5 rounded-full bg-white/[0.04] text-tactical-400 text-[10px] font-mono">
+                        Sin registros aún (Monitoreando)
+                      </span>
+                    </td>
+                    <td className="text-tactical-400">
+                      No ha emitido notificaciones al teléfono con el servicio activo. El parser está listo para Simple QR BNB.
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                        <span className="font-bold text-white">Gmail (Comprobantes Bancarios)</span>
+                      </div>
+                    </td>
+                    <td>
+                      <code className="text-[#C8A961] font-mono text-[11px]">com.google.android.gm</code>
+                    </td>
+                    <td>
+                      <span className="badge badge-verified text-[10px]">Activo (Cientos de registros)</span>
+                    </td>
+                    <td className="text-tactical-300">
+                      Comprobantes oficiales de <strong className="text-white">notificacionesyape</strong> con Nº de transacción y monto verificado.
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                        <span className="font-bold text-white">Cripto / Billeteras</span>
+                      </div>
+                    </td>
+                    <td>
+                      <code className="text-tactical-400 font-mono text-[11px]">com.tangem.wallet / com.binance.dev</code>
+                    </td>
+                    <td>
+                      <span className="badge badge-delivered text-[10px]">Activo</span>
+                    </td>
+                    <td className="text-tactical-400">
+                      Monitoreo de movimientos y confirmaciones en USDT / criptoactivos.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Live Notification Feed Section */}
+          <div className="glass-card-static p-5 border border-white/[0.08] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-white/[0.06]">
+              <div className="flex items-center gap-2">
+                <CreditCard size={16} className="text-[#C8A961]" />
+                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white">
+                  Feed de Notificaciones Bancarias Capturadas en Vivo
+                </h3>
               </div>
 
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <div className="w-6 h-6 rounded-full bg-[#C8A961]/20 text-[#C8A961] font-mono font-bold flex items-center justify-center flex-shrink-0">
-                  2
-                </div>
-                <div>
-                  <div className="font-semibold text-white">NotofocacionS intercepta el push bancario</div>
-                  <p className="text-tactical-400 mt-0.5">
-                    Extrae el monto recibido (ej. "Bs. 150.00"), nombre del depositante y banco origen.
-                  </p>
+              {/* Bank Filter Tabs */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] text-tactical-400 font-mono mr-1">Filtrar:</span>
+                <div className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-lg flex-wrap">
+                  <button
+                    onClick={() => setLiveFilter('payments')}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition ${
+                      liveFilter === 'payments' ? 'bg-[#C8A961] text-black font-bold' : 'text-tactical-400 hover:text-white'
+                    }`}
+                  >
+                    Solo Pagos
+                  </button>
+                  <button
+                    onClick={() => setLiveFilter('all')}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition ${
+                      liveFilter === 'all' ? 'bg-[#C8A961] text-black font-bold' : 'text-tactical-400 hover:text-white'
+                    }`}
+                  >
+                    Todas ({liveBankNotifications.length})
+                  </button>
+                  <button
+                    onClick={() => setLiveFilter('yape')}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition ${
+                      liveFilter === 'yape' ? 'bg-purple-500 text-white font-bold' : 'text-purple-400/80 hover:text-purple-300'
+                    }`}
+                  >
+                    Yape BCP
+                  </button>
+                  <button
+                    onClick={() => setLiveFilter('gmail')}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition ${
+                      liveFilter === 'gmail' ? 'bg-red-500 text-white font-bold' : 'text-red-400/80 hover:text-red-300'
+                    }`}
+                  >
+                    Gmail Yape
+                  </button>
+                  <button
+                    onClick={() => setLiveFilter('bmsc')}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition ${
+                      liveFilter === 'bmsc' ? 'bg-emerald-600 text-white font-bold' : 'text-emerald-400/80 hover:text-emerald-300'
+                    }`}
+                  >
+                    BMSC
+                  </button>
+                  <button
+                    onClick={() => setLiveFilter('bnb')}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition ${
+                      liveFilter === 'bnb' ? 'bg-green-600 text-white font-bold' : 'text-green-400/80 hover:text-green-300'
+                    }`}
+                  >
+                    BNB
+                  </button>
+                  <button
+                    onClick={() => setLiveFilter('crypto')}
+                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition ${
+                      liveFilter === 'crypto' ? 'bg-amber-500 text-black font-bold' : 'text-amber-400/80 hover:text-amber-300'
+                    }`}
+                  >
+                    Cripto
+                  </button>
                 </div>
               </div>
+            </div>
 
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                <div className="w-6 h-6 rounded-full bg-[#C8A961]/20 text-[#C8A961] font-mono font-bold flex items-center justify-center flex-shrink-0">
-                  3
-                </div>
-                <div>
-                  <div className="font-semibold text-white">Cruce automático en Base de Datos</div>
-                  <p className="text-tactical-400 mt-0.5">
-                    El sistema cruza el monto extraído con las órdenes pendientes y marca la venta como pagada inmediatamente.
+            {/* Notification Cards */}
+            <div className="space-y-3">
+              {liveBankNotifications
+                .filter(notif => {
+                  if (liveFilter === 'payments') return notif.is_payment;
+                  if (liveFilter === 'yape') return notif.package_name === 'com.bcp.bo.wallet';
+                  if (liveFilter === 'gmail') return notif.package_name === 'com.google.android.gm';
+                  if (liveFilter === 'bmsc') return notif.package_name.includes('bmsc');
+                  if (liveFilter === 'bnb') return notif.package_name.startsWith('com.bnb.') || notif.package_name.includes('bnb');
+                  if (liveFilter === 'crypto') return notif.package_name === 'com.binance.dev' || notif.package_name === 'com.tangem.wallet';
+                  return true;
+                })
+                .map(notif => {
+                  // Check if this notification matches any pending order by amount
+                  const pendingMatchingOrder =
+                    notif.extracted_amount && notif.extracted_amount > 0
+                      ? orders.find(
+                          o =>
+                            (o.status === 'pending' || (o as any).status === 'unverified') &&
+                            Math.abs(o.total - (notif.extracted_amount || 0)) < 0.05
+                        )
+                      : null;
+
+                  return (
+                    <div
+                      key={notif.id}
+                      className={`p-4 rounded-xl border transition space-y-3 ${
+                        notif.is_payment
+                          ? 'bg-purple-950/10 border-purple-500/30'
+                          : notif.is_promotional
+                          ? 'bg-white/[0.01] border-white/[0.04] opacity-60'
+                          : 'bg-white/[0.02] border-white/[0.06]'
+                      }`}
+                    >
+                      {/* Top Header of Card */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border"
+                            style={{
+                              backgroundColor: `${notif.bank_color}25`,
+                              borderColor: `${notif.bank_color}50`,
+                              color: '#FFFFFF',
+                            }}
+                          >
+                            {notif.bank_name}
+                          </span>
+
+                          <code className="text-[10px] font-mono text-tactical-500">
+                            {notif.package_name}
+                          </code>
+                        </div>
+
+                        <span className="text-[11px] font-mono text-tactical-400">
+                          {new Date(notif.created_at).toLocaleString('es-BO', {
+                            timeZone: 'America/La_Paz',
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+
+                      {/* Content preview */}
+                      <div className="space-y-1">
+                        <div className="text-xs font-bold text-white">{notif.title}</div>
+                        <p className="text-xs text-tactical-300 font-mono whitespace-pre-line leading-relaxed">
+                          {notif.content}
+                        </p>
+                      </div>
+
+                      {/* Extracted Payment Metrics */}
+                      {notif.is_payment && (
+                        <div className="pt-2 border-t border-white/[0.06] flex flex-wrap items-center justify-between gap-3 bg-black/30 p-2.5 rounded-lg">
+                          <div className="flex items-center gap-4 flex-wrap">
+                            {notif.extracted_amount !== null && (
+                              <div>
+                                <span className="text-[10px] uppercase font-mono text-tactical-500 block">
+                                  Monto Detectado
+                                </span>
+                                <span className="text-base font-mono font-black text-emerald-400">
+                                  Bs. {notif.extracted_amount.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+
+                            {notif.client_name && (
+                              <div>
+                                <span className="text-[10px] uppercase font-mono text-tactical-500 block">
+                                  Cliente / Depositante
+                                </span>
+                                <span className="text-xs font-semibold text-white">
+                                  {notif.client_name}
+                                </span>
+                              </div>
+                            )}
+
+                            {notif.transaction_ref && (
+                              <div>
+                                <span className="text-[10px] uppercase font-mono text-tactical-500 block">
+                                  Nº Transacción
+                                </span>
+                                <span className="text-xs font-mono text-[#C8A961]">
+                                  {notif.transaction_ref}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Matching action if order matches */}
+                          {pendingMatchingOrder ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-[#C8A961] font-semibold flex items-center gap-1">
+                                <CheckCircle2 size={13} /> Coincide con Orden #{pendingMatchingOrder.id.toUpperCase()}
+                              </span>
+                              <button
+                                onClick={() => handleAcreditarOrden(pendingMatchingOrder.id, notif)}
+                                className="btn-tactical text-xs py-1.5 px-3 flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold"
+                              >
+                                <Check size={13} /> Cruzar y Acreditar
+                              </button>
+                            </div>
+                          ) : notif.extracted_amount ? (
+                            <span className="text-[10px] font-mono text-tactical-500">
+                              (Sin orden pendiente por Bs. {notif.extracted_amount.toFixed(2)})
+                            </span>
+                          ) : null}
+                        </div>
+                      )}
+
+                      {notif.is_promotional && (
+                        <div className="text-[10px] text-tactical-500 font-mono italic">
+                          ℹ️ Notificación clasificada como aviso promocional / sorteo. Descartada para acreditación de pagos.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+              {liveBankNotifications.length === 0 && (
+                <div className="text-center py-8 glass-card-static border border-dashed border-white/[0.08]">
+                  <Smartphone size={32} className="text-tactical-600 mx-auto mb-2" />
+                  <div className="text-xs font-bold text-white mb-1">
+                    Feed listo para sincronizar
+                  </div>
+                  <p className="text-[11px] text-tactical-400 max-w-sm mx-auto mb-3">
+                    Presiona el botón superior para cargar las notificaciones bancarias directamente desde Supabase.
                   </p>
+                  <button
+                    onClick={fetchLiveBankNotifications}
+                    disabled={isLoadingLiveNotifs}
+                    className="btn-tactical text-xs py-2 px-4"
+                  >
+                    <RefreshCw size={13} className="inline mr-1" /> Cargar Feed en Vivo
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
