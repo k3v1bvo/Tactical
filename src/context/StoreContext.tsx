@@ -14,6 +14,7 @@ import type {
   CashSettlement,
   CashSettlementMethod,
   FixedAmountQR,
+  PaymentGatewaySettings,
 } from '@/lib/types';
 import {
   demoCategories,
@@ -24,6 +25,7 @@ import {
   demoDriverEarnings,
   demoVendor,
   defaultStoreSettings,
+  defaultPaymentGatewaySettings,
   demoFixedAmountQRs,
 } from '@/lib/demo-data';
 import { toast } from 'sonner';
@@ -71,9 +73,11 @@ interface StoreContextType {
   isDriverAvailable: boolean;
   storeSettings: StoreSettings;
   cashSettlements: CashSettlement[];
+  paymentGatewaySettings: PaymentGatewaySettings;
 
   // Store Settings (Admin)
   updateStoreSettings: (settings: Partial<StoreSettings>) => void;
+  updatePaymentGatewaySettings: (settings: Partial<PaymentGatewaySettings>) => void;
 
   // Category CRUD
   addCategory: (cat: { name: string; description?: string }) => Category;
@@ -239,6 +243,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
   const [cashSettlements, setCashSettlements] = useState<CashSettlement[]>([]);
   const [fixedAmountQRs, setFixedAmountQRs] = useState<FixedAmountQR[]>(demoFixedAmountQRs);
+  const [paymentGatewaySettings, setPaymentGatewaySettings] = useState<PaymentGatewaySettings>(defaultPaymentGatewaySettings);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Load from localStorage on mount
@@ -338,6 +343,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } else {
         setFixedAmountQRs(demoFixedAmountQRs);
         localStorage.setItem('tacticos_fixed_amount_qrs', JSON.stringify(demoFixedAmountQRs));
+      }
+
+      const savedGateway = localStorage.getItem('tacticos_payment_gateway_settings');
+      if (savedGateway) {
+        try {
+          setPaymentGatewaySettings(JSON.parse(savedGateway));
+        } catch {
+          setPaymentGatewaySettings(defaultPaymentGatewaySettings);
+        }
+      } else {
+        setPaymentGatewaySettings(defaultPaymentGatewaySettings);
+        localStorage.setItem('tacticos_payment_gateway_settings', JSON.stringify(defaultPaymentGatewaySettings));
       }
 
       // Live Supabase sync
@@ -2013,6 +2030,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     toast.success('Alerta resuelta');
   };
 
+  const updatePaymentGatewaySettings = (settings: Partial<PaymentGatewaySettings>) => {
+    setPaymentGatewaySettings(prev => {
+      const updated = {
+        ...prev,
+        ...settings,
+        updated_at: new Date().toISOString(),
+      };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tacticos_payment_gateway_settings', JSON.stringify(updated));
+      }
+      return updated;
+    });
+    toast.success('Configuración de pasarela guardada con éxito', {
+      description: `Proveedor activo: ${settings.provider_name || paymentGatewaySettings.provider_name}`,
+    });
+  };
+
   const resetToDefaults = () => {
     setCategories(demoCategories);
     setProducts(demoProducts);
@@ -2022,6 +2056,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setDriverEarnings(demoDriverEarnings);
     setIsDriverAvailable(true);
     setStoreSettings(defaultStoreSettings);
+    setPaymentGatewaySettings(defaultPaymentGatewaySettings);
     setCashSettlements([]);
     setFixedAmountQRs(demoFixedAmountQRs);
     localStorage.removeItem('tacticos_store_categories');
@@ -2032,6 +2067,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('tacticos_store_driver_earnings');
     localStorage.removeItem('tacticos_driver_available');
     localStorage.removeItem('tacticos_store_settings');
+    localStorage.removeItem('tacticos_payment_gateway_settings');
     localStorage.removeItem('tacticos_cash_settlements');
     localStorage.removeItem('tacticos_fixed_amount_qrs');
     toast.info('Datos restaurados a valores de fábrica para Bolivia');
@@ -2049,6 +2085,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         isDriverAvailable,
         storeSettings,
         updateStoreSettings,
+        paymentGatewaySettings,
+        updatePaymentGatewaySettings,
         addCategory,
         updateCategory,
         deleteCategory,

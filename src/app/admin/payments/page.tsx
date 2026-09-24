@@ -28,6 +28,8 @@ import {
   Check,
   HelpCircle,
   Sparkles,
+  Sliders,
+  Save,
 } from 'lucide-react';
 import {
   parseBankNotification,
@@ -35,7 +37,14 @@ import {
   type DetectedBankNotification,
 } from '@/lib/bolivia-banking';
 import { toast } from 'sonner';
-import type { PaymentStatus, PaymentVerification, FixedAmountQR, Order } from '@/lib/types';
+import type {
+  PaymentStatus,
+  PaymentVerification,
+  FixedAmountQR,
+  Order,
+  ActivePaymentProvider,
+  PaymentGatewaySettings,
+} from '@/lib/types';
 
 const statusConfig: Record<PaymentStatus, { label: string; badge: string; icon: typeof Clock }> = {
   pending: { label: 'Pendiente', badge: 'badge-pending', icon: Clock },
@@ -66,9 +75,11 @@ export default function AdminPaymentsPage() {
     deleteFixedAmountQR,
     toggleFixedAmountQRStatus,
     getQRForAmount,
+    paymentGatewaySettings,
+    updatePaymentGatewaySettings,
   } = useStore();
 
-  const [activeTab, setActiveTab] = useState<'matrix' | 'verifications' | 'simulator' | 'mobile'>('matrix');
+  const [activeTab, setActiveTab] = useState<'matrix' | 'verifications' | 'simulator' | 'mobile' | 'gateway'>('matrix');
   const [payments, setPayments] = useState<PaymentVerification[]>(demoPayments);
   const [selectedReceipt, setSelectedReceipt] = useState<{ id: string; url: string; orderId: string } | null>(null);
 
@@ -98,6 +109,106 @@ export default function AdminPaymentsPage() {
   const [formIsDefault, setFormIsDefault] = useState(false);
   const [formNotes, setFormNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Payment Gateway Form State (Admin Configuration for Yape & Banks)
+  const [gwProvider, setGwProvider] = useState<ActivePaymentProvider>(
+    paymentGatewaySettings?.active_provider || 'yape'
+  );
+  const [gwName, setGwName] = useState(
+    paymentGatewaySettings?.provider_name || 'Yape Bolivia / BCP Soli'
+  );
+  const [gwPackage, setGwPackage] = useState(
+    paymentGatewaySettings?.package_name || 'com.bcp.bo.wallet'
+  );
+  const [gwAccountHolder, setGwAccountHolder] = useState(
+    paymentGatewaySettings?.account_holder || 'Tienda Táctica Bolivia SRL'
+  );
+  const [gwPhoneOrAccount, setGwPhoneOrAccount] = useState(
+    paymentGatewaySettings?.phone_or_account || '78353814'
+  );
+  const [gwTitle, setGwTitle] = useState(
+    paymentGatewaySettings?.checkout_title || 'Pago Rápido con Yape Bolivia (Simple QR)'
+  );
+  const [gwInstructions, setGwInstructions] = useState(
+    paymentGatewaySettings?.checkout_instructions ||
+      'Escanea el código QR táctico directamente desde tu aplicación Yape o BCP. Al confirmar en tu celular, el pago se acredita en tiempo real sin necesidad de enviar comprobantes manuales.'
+  );
+  const [gwAutoMatch, setGwAutoMatch] = useState(
+    paymentGatewaySettings?.auto_match_enabled ?? true
+  );
+  const [gwNotify, setGwNotify] = useState(
+    paymentGatewaySettings?.notify_on_verified ?? true
+  );
+
+  // Sync form if context changes
+  React.useEffect(() => {
+    if (paymentGatewaySettings) {
+      setGwProvider(paymentGatewaySettings.active_provider);
+      setGwName(paymentGatewaySettings.provider_name);
+      setGwPackage(paymentGatewaySettings.package_name);
+      setGwAccountHolder(paymentGatewaySettings.account_holder);
+      setGwPhoneOrAccount(paymentGatewaySettings.phone_or_account);
+      setGwTitle(paymentGatewaySettings.checkout_title);
+      setGwInstructions(paymentGatewaySettings.checkout_instructions);
+      setGwAutoMatch(paymentGatewaySettings.auto_match_enabled);
+      setGwNotify(paymentGatewaySettings.notify_on_verified);
+    }
+  }, [paymentGatewaySettings]);
+
+  const handleSelectGatewayPreset = (provider: ActivePaymentProvider) => {
+    setGwProvider(provider);
+    if (provider === 'yape') {
+      setGwName('Yape Bolivia / BCP Soli');
+      setGwPackage('com.bcp.bo.wallet');
+      setGwTitle('Pago Rápido con Yape Bolivia (Simple QR)');
+      setGwInstructions(
+        'Escanea el código QR táctico directamente desde tu aplicación Yape o BCP. Al confirmar en tu celular, el pago se acredita en tiempo real sin necesidad de enviar comprobantes manuales.'
+      );
+    } else if (provider === 'bmsc') {
+      setGwName('Banco Mercantil Santa Cruz (BMSC)');
+      setGwPackage('bo.com.bmsc.bancamovil');
+      setGwTitle('Pago por Transferencia BMSC / Simple QR');
+      setGwInstructions(
+        'Abre tu Banca Móvil BMSC o escanea el Simple QR para realizar la transferencia. La acreditación será validada con tu confirmación.'
+      );
+    } else if (provider === 'bnb') {
+      setGwName('Banco Nacional de Bolivia (BNB)');
+      setGwPackage('com.bnb.bancamovil');
+      setGwTitle('Pago Simple QR BNB Móvil');
+      setGwInstructions(
+        'Abre tu app BNB Móvil, ve a Simple QR y escanea el código con el monto exacto asignado para tu orden.'
+      );
+    } else if (provider === 'union') {
+      setGwName('Banco Unión (Unión Móvil)');
+      setGwPackage('bo.gob.bancounion.bancamovil');
+      setGwTitle('Pago Simple QR Banco Unión');
+      setGwInstructions(
+        'Transfiere a través de Unión Móvil o Simple QR. Verifica que el monto coincida exactamente con el total de tu compra.'
+      );
+    } else if (provider === 'crypto') {
+      setGwName('Binance Pay / USDT Cripto');
+      setGwPackage('com.binance.dev');
+      setGwTitle('Pago en Criptomonedas (USDT)');
+      setGwInstructions(
+        'Transfiere el equivalente exacto en USDT (Red TRC20 / BEP20) o escanea el código Binance Pay para acreditación directa.'
+      );
+    }
+  };
+
+  const handleSaveGateway = (e: React.FormEvent) => {
+    e.preventDefault();
+    updatePaymentGatewaySettings({
+      active_provider: gwProvider,
+      provider_name: gwName.trim(),
+      package_name: gwPackage.trim(),
+      account_holder: gwAccountHolder.trim(),
+      phone_or_account: gwPhoneOrAccount.trim(),
+      checkout_title: gwTitle.trim(),
+      checkout_instructions: gwInstructions.trim(),
+      auto_match_enabled: gwAutoMatch,
+      notify_on_verified: gwNotify,
+    });
+  };
 
   // Simulator State
   const [simAmount, setSimAmount] = useState('150.00');
@@ -397,6 +508,18 @@ export default function AdminPaymentsPage() {
         >
           <Smartphone size={15} className={activeTab === 'mobile' ? 'text-[#C8A961]' : ''} />
           Integración Celular (NotofocacionS)
+        </button>
+
+        <button
+          onClick={() => setActiveTab('gateway')}
+          className={`px-4 py-2.5 rounded-t-lg font-semibold transition flex items-center gap-2 ${
+            activeTab === 'gateway'
+              ? 'bg-white/[0.08] text-white border-b-2 border-[#C8A961]'
+              : 'text-tactical-400 hover:text-tactical-200'
+          }`}
+        >
+          <Sliders size={15} className={activeTab === 'gateway' ? 'text-[#C8A961]' : ''} />
+          Pasarela Activa & Yape ({paymentGatewaySettings.provider_name.split(' ')[0]})
         </button>
       </div>
 
@@ -1324,6 +1447,363 @@ export default function AdminPaymentsPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: CONFIGURACIÓN DE PASARELA ACTIVA & YAPE BOLIVIA */}
+      {activeTab === 'gateway' && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Header Card */}
+          <div className="glass-card-static p-6 border border-white/[0.08] space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#C8A961]/20 text-[#C8A961] flex items-center justify-center flex-shrink-0">
+                  <Sliders size={20} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+                    Configuración de Pasarela de Pagos & Yape Bolivia
+                  </h2>
+                  <span className="text-[11px] text-tactical-400">
+                    Selecciona qué banca es la oficial para recibir cobros, personaliza los textos del checkout y controla la acreditación automática.
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 font-mono text-xs font-bold border border-purple-500/30">
+                  Canal Activo: {paymentGatewaySettings.provider_name}
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Selector Grid */}
+            <div className="space-y-2 pt-2">
+              <label className="block text-xs font-mono uppercase text-tactical-400">
+                Selecciona la Pasarela Principal (Pre-configurada para Bolivia):
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                {/* 1. Yape */}
+                <div
+                  onClick={() => handleSelectGatewayPreset('yape')}
+                  className={`p-3 rounded-xl border cursor-pointer transition space-y-1.5 ${
+                    gwProvider === 'yape'
+                      ? 'bg-purple-950/30 border-purple-500 shadow-lg shadow-purple-500/10 ring-1 ring-purple-500'
+                      : 'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.15]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+                    <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[9px] font-bold uppercase">
+                      Recomendado
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-white">Yape Bolivia / BCP</div>
+                  <code className="text-[10px] text-tactical-400 font-mono block truncate">com.bcp.bo.wallet</code>
+                  <p className="text-[10px] text-tactical-400 leading-tight">
+                    Pagos QR con monto cerrado y nombre del pagador.
+                  </p>
+                </div>
+
+                {/* 2. BMSC */}
+                <div
+                  onClick={() => handleSelectGatewayPreset('bmsc')}
+                  className={`p-3 rounded-xl border cursor-pointer transition space-y-1.5 ${
+                    gwProvider === 'bmsc'
+                      ? 'bg-emerald-950/30 border-emerald-500 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500'
+                      : 'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.15]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-bold uppercase">
+                      BMSC
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-white">Mercantil Santa Cruz</div>
+                  <code className="text-[10px] text-tactical-400 font-mono block truncate">bo.com.bmsc.bancamovil</code>
+                  <p className="text-[10px] text-tactical-400 leading-tight">
+                    Transferencias directas y Simple QR Mercantil.
+                  </p>
+                </div>
+
+                {/* 3. BNB */}
+                <div
+                  onClick={() => handleSelectGatewayPreset('bnb')}
+                  className={`p-3 rounded-xl border cursor-pointer transition space-y-1.5 ${
+                    gwProvider === 'bnb'
+                      ? 'bg-green-950/30 border-green-500 shadow-lg shadow-green-500/10 ring-1 ring-green-500'
+                      : 'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.15]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                    <span className="px-1.5 py-0.5 rounded bg-green-500/20 text-green-300 text-[9px] font-bold uppercase">
+                      BNB Móvil
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-white">Nacional de Bolivia</div>
+                  <code className="text-[10px] text-tactical-400 font-mono block truncate">com.bnb.bancamovil</code>
+                  <p className="text-[10px] text-tactical-400 leading-tight">
+                    Simple QR BNB y abonos interbancarios.
+                  </p>
+                </div>
+
+                {/* 4. Banco Unión */}
+                <div
+                  onClick={() => handleSelectGatewayPreset('union')}
+                  className={`p-3 rounded-xl border cursor-pointer transition space-y-1.5 ${
+                    gwProvider === 'union'
+                      ? 'bg-blue-950/30 border-blue-500 shadow-lg shadow-blue-500/10 ring-1 ring-blue-500'
+                      : 'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.15]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                    <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 text-[9px] font-bold uppercase">
+                      Unión Móvil
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-white">Banco Unión</div>
+                  <code className="text-[10px] text-tactical-400 font-mono block truncate">bo.gob.bancounion...</code>
+                  <p className="text-[10px] text-tactical-400 leading-tight">
+                    Banca pública y recepción de fondos estatales.
+                  </p>
+                </div>
+
+                {/* 5. Cripto */}
+                <div
+                  onClick={() => handleSelectGatewayPreset('crypto')}
+                  className={`p-3 rounded-xl border cursor-pointer transition space-y-1.5 ${
+                    gwProvider === 'crypto'
+                      ? 'bg-amber-950/30 border-amber-500 shadow-lg shadow-amber-500/10 ring-1 ring-amber-500'
+                      : 'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.15]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold uppercase">
+                      Cripto
+                    </span>
+                  </div>
+                  <div className="text-xs font-bold text-white">Binance / Tangem</div>
+                  <code className="text-[10px] text-tactical-400 font-mono block truncate">com.binance.dev</code>
+                  <p className="text-[10px] text-tactical-400 leading-tight">
+                    USDT (TRC20 / BEP20) o Binance Pay.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Form and Preview Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Column: Form Details */}
+            <form onSubmit={handleSaveGateway} className="lg:col-span-7 glass-card-static p-6 border border-white/[0.08] space-y-4">
+              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-tactical-400 pb-2 border-b border-white/[0.06]">
+                Detalles del Proveedor & Textos del Checkout
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-mono uppercase text-tactical-400 mb-1">
+                    Nombre Visible al Cliente *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={gwName}
+                    onChange={e => setGwName(e.target.value)}
+                    className="input-tactical w-full text-xs"
+                    placeholder="Ej. Yape Bolivia / BCP Soli"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono uppercase text-tactical-400 mb-1">
+                    Paquete Android Monitoreado *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={gwPackage}
+                    onChange={e => setGwPackage(e.target.value)}
+                    className="input-tactical w-full text-xs font-mono"
+                    placeholder="Ej. com.bcp.bo.wallet"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-mono uppercase text-tactical-400 mb-1">
+                    Titular de la Cuenta / Billetera *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={gwAccountHolder}
+                    onChange={e => setGwAccountHolder(e.target.value)}
+                    className="input-tactical w-full text-xs"
+                    placeholder="Ej. Tienda Táctica Bolivia SRL"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono uppercase text-tactical-400 mb-1">
+                    Celular Yape / Nº Cuenta Bancaria *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={gwPhoneOrAccount}
+                    onChange={e => setGwPhoneOrAccount(e.target.value)}
+                    className="input-tactical w-full text-xs font-mono"
+                    placeholder="Ej. 78353814"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono uppercase text-tactical-400 mb-1">
+                  Título Destacado en Checkout *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={gwTitle}
+                  onChange={e => setGwTitle(e.target.value)}
+                  className="input-tactical w-full text-xs"
+                  placeholder="Ej. Pago Rápido con Yape Bolivia (Simple QR)"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono uppercase text-tactical-400 mb-1">
+                  Instrucciones Personalizadas para el Cliente *
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  value={gwInstructions}
+                  onChange={e => setGwInstructions(e.target.value)}
+                  className="input-tactical w-full text-xs leading-relaxed"
+                  placeholder="Escribe aquí las indicaciones que verá el cliente antes y durante el pago con QR..."
+                />
+                <span className="text-[10px] text-tactical-500 mt-1 block">
+                  Recomendación: Explica al cliente que su transferencia se verifica automáticamente al coincidir el monto.
+                </span>
+              </div>
+
+              {/* Toggles */}
+              <div className="pt-2 border-t border-white/[0.06] space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={gwAutoMatch}
+                    onChange={e => setGwAutoMatch(e.target.checked)}
+                    className="w-4 h-4 rounded border-tactical-600 text-[#C8A961] focus:ring-[#C8A961] bg-black/40"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-white block">
+                      Habilitar Acreditación Automática en Tiempo Real
+                    </span>
+                    <span className="text-[11px] text-tactical-400">
+                      Cuando la app NotofocacionS detecte la notificación con monto coincidente, la orden pasará a &quot;Pagada&quot; de inmediato.
+                    </span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={gwNotify}
+                    onChange={e => setGwNotify(e.target.checked)}
+                    className="w-4 h-4 rounded border-tactical-600 text-[#C8A961] focus:ring-[#C8A961] bg-black/40"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-white block">
+                      Notificar al Cliente tras Verificación
+                    </span>
+                    <span className="text-[11px] text-tactical-400">
+                      Muestra confirmación en pantalla y notifica al cliente que su orden ya está en preparación.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              {/* Save Button */}
+              <div className="pt-3">
+                <button
+                  type="submit"
+                  className="btn-tactical text-xs py-2.5 px-6 flex items-center justify-center gap-2 shadow-lg shadow-[#C8A961]/10 w-full sm:w-auto"
+                >
+                  <Save size={15} /> Guardar Configuración de Pasarela
+                </button>
+              </div>
+            </form>
+
+            {/* Right Column: Live Customer Preview */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="glass-card-static p-6 border border-white/[0.08] space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+                  <span className="text-xs font-mono font-bold uppercase text-tactical-400">
+                    Vista Previa en Vivo (Cliente)
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[9px] font-mono font-bold">
+                    Checkout Pantalla Real
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-tactical-400">
+                  Así es como el cliente verá el banner y las instrucciones de pago en la pantalla de confirmación:
+                </p>
+
+                {/* Simulated Customer Checkout Card */}
+                <div className="p-4 rounded-xl bg-purple-950/20 border border-purple-500/30 text-left space-y-2 shadow-xl">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-white">
+                      {gwTitle || 'Pago Rápido por QR'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono text-[9px] font-bold uppercase border border-purple-500/30">
+                      {gwName || 'Yape Bolivia'}
+                    </span>
+                    {gwAutoMatch && (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[9px] font-bold uppercase border border-emerald-500/30">
+                        ⚡ Acreditación Automática
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-neutral-300 leading-relaxed whitespace-pre-line">
+                    {gwInstructions || 'Escanea el código QR táctico directamente desde tu aplicación Yape o BCP.'}
+                  </p>
+
+                  <div className="text-[11px] text-purple-300/80 font-mono pt-1 border-t border-purple-500/20 flex flex-wrap gap-x-3 gap-y-1">
+                    <span>
+                      Cuenta / Celular: <strong className="text-white">{gwPhoneOrAccount || '78353814'}</strong>
+                    </span>
+                    <span>
+                      Titular: <strong className="text-white">{gwAccountHolder || 'Tienda Táctica'}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Additional Info Box */}
+                <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] text-xs text-tactical-400 space-y-1.5">
+                  <div className="text-[10px] font-mono uppercase text-tactical-500">
+                    Sincronización con Matriz de QRs:
+                  </div>
+                  <p>
+                    Cuando el cliente pague, el sistema mostrará el QR con el monto exacto asignado a este banco (<strong className="text-white">{gwName}</strong>).
+                  </p>
+                  <p className="text-[10px] text-tactical-500">
+                    Última actualización: {new Date(paymentGatewaySettings.updated_at).toLocaleString('es-BO', { timeZone: 'America/La_Paz' })}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

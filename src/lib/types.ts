@@ -191,6 +191,21 @@ export interface FixedAmountQR {
   updated_at?: string;
 }
 
+export type ActivePaymentProvider = 'yape' | 'bmsc' | 'bnb' | 'union' | 'bisa' | 'crypto';
+
+export interface PaymentGatewaySettings {
+  active_provider: ActivePaymentProvider;
+  provider_name: string;              // Ej: "Yape Bolivia / BCP Soli"
+  package_name: string;               // Ej: "com.bcp.bo.wallet"
+  account_holder: string;             // Ej: "Tienda Táctica Bolivia SRL"
+  phone_or_account: string;           // Ej: "78353814" o cuenta bancaria
+  checkout_title: string;             // Ej: "Pago Rápido con Yape Bolivia (Simple QR)"
+  checkout_instructions: string;      // Instrucciones visibles en checkout
+  auto_match_enabled: boolean;        // Conciliación en tiempo real con Supabase
+  notify_on_verified: boolean;        // Notificar al cliente al confirmar
+  updated_at: string;
+}
+
 export interface PaymentVerification {
   id: string;
   order_id: string;

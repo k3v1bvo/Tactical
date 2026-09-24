@@ -7,7 +7,8 @@ import type {
   Product, Category, Order, OrderItem, Profile,
   AuditLog, SystemAlert, PaymentVerification, Notification,
   DailySalesSummary, ProductSalesSummary, CategorySalesSummary,
-  ShippingZone, DriverEarning, DriverAvailability, FixedAmountQR
+  ShippingZone, DriverEarning, DriverAvailability, FixedAmountQR,
+  PaymentGatewaySettings
 } from './types';
 
 // ============ CATEGORIES ============
@@ -32,6 +33,20 @@ export const defaultStoreSettings = {
   pickupInstructions: 'Presentar carnet de identidad o el código de tu orden al momento del recojo en nuestro almacén central de Cochabamba.',
   freeGiftName: 'Pack de Stickers Tácticos Exclusivos (Edición Especial — ¡Descúbrelos al recibir tu paquete!)',
   freeGiftValue: 35.00,
+};
+
+// ============ DEFAULT PAYMENT GATEWAY SETTINGS (YAPE BOLIVIA / BCP) ============
+export const defaultPaymentGatewaySettings: PaymentGatewaySettings = {
+  active_provider: 'yape',
+  provider_name: 'Yape Bolivia / BCP Soli',
+  package_name: 'com.bcp.bo.wallet',
+  account_holder: 'Tienda Táctica Bolivia SRL',
+  phone_or_account: '78353814',
+  checkout_title: 'Pago Rápido con Yape Bolivia (Simple QR)',
+  checkout_instructions: 'Escanea el código QR táctico directamente desde tu aplicación Yape o BCP. Al confirmar en tu celular, el pago se acredita en tiempo real sin necesidad de enviar comprobantes manuales.',
+  auto_match_enabled: true,
+  notify_on_verified: true,
+  updated_at: new Date().toISOString(),
 };
 
 // ============ SHIPPING ZONES (COCHABAMBA & NACIONAL) ============

@@ -26,7 +26,8 @@ import {
   Store,
   Gift,
   Building,
-  CalendarCheck
+  CalendarCheck,
+  Smartphone,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -57,7 +58,7 @@ const PICKUP_TIME_SLOTS = [
 
 export default function CheckoutPage() {
   const { items, totalPrice, totalItems, clearCart } = useCart();
-  const { shippingZones, storeSettings, createOrder, getQRForAmount } = useStore();
+  const { shippingZones, storeSettings, createOrder, getQRForAmount, paymentGatewaySettings } = useStore();
   const { userName, userEmail, userPhone, isLoggedIn } = useAuth();
   const router = useRouter();
 
@@ -449,8 +450,40 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
+                  {/* Dynamic Active Provider Banner configured by Admin */}
+                  {paymentGatewaySettings && (
+                    <div className="p-3.5 rounded-xl bg-purple-950/20 border border-purple-500/30 text-left flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-300 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Smartphone size={16} />
+                      </div>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-white">
+                            {paymentGatewaySettings.checkout_title || 'Pago Rápido por QR'}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono text-[9px] font-bold uppercase border border-purple-500/30">
+                            {paymentGatewaySettings.provider_name}
+                          </span>
+                          {paymentGatewaySettings.auto_match_enabled && (
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[9px] font-bold uppercase border border-emerald-500/30">
+                              ⚡ Acreditación Automática
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-neutral-300 leading-relaxed">
+                          {paymentGatewaySettings.checkout_instructions}
+                        </p>
+                        {paymentGatewaySettings.phone_or_account && (
+                          <div className="text-[11px] text-purple-300/80 font-mono pt-0.5">
+                            Cuenta / Celular: <strong className="text-white">{paymentGatewaySettings.phone_or_account}</strong> • Titular: <strong className="text-white">{paymentGatewaySettings.account_holder}</strong>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <p className="text-xs text-neutral-400">
-                    Escanea con tu aplicación bancaria (Banco Unión, BNB, BCP, GanaMóvil, Fassil o billetera QR Simple) para validar la acreditación.
+                    Escanea con tu aplicación {paymentGatewaySettings?.provider_name || 'bancaria'} (Yape, Banco Unión, BNB, BCP o billetera Simple QR) para validar la acreditación.
                   </p>
 
                   {/* Upload proof */}
