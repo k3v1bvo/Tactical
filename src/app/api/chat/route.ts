@@ -128,18 +128,26 @@ async function callGeminiAI(
     conversationHistory.push({ role, parts: [{ text }] });
   }
 
-  // Model cascade: Try 2.5-flash with search, then 2.0-flash with search, then 1.5-flash
+  // Model cascade: Try 3.5-flash (active 2026), 3.8-flash, 3.7-flash, gemini-flash-latest
   const modelsToTry = [
     {
-      name: 'gemini-2.5-flash',
+      name: 'gemini-3.5-flash',
       useSearch: true,
     },
     {
-      name: 'gemini-2.0-flash',
+      name: 'gemini-3.8-flash',
       useSearch: true,
     },
     {
-      name: 'gemini-1.5-flash',
+      name: 'gemini-3.7-flash',
+      useSearch: true,
+    },
+    {
+      name: 'gemini-flash-latest',
+      useSearch: true,
+    },
+    {
+      name: 'gemini-3.1-flash-lite',
       useSearch: false,
     },
   ];
