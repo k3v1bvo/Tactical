@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import {
   LayoutDashboard, ShoppingCart, Package, Users, CreditCard,
   BarChart3, ScrollText, AlertTriangle, Settings, Shield,
-  Menu, X, ChevronLeft, Bell, LogOut, Navigation, Truck
+  Menu, X, ChevronLeft, Bell, LogOut, Navigation, Truck, ArrowLeft
 } from 'lucide-react';
 
 const navItems = [
@@ -140,8 +140,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <div className="flex items-center gap-2">
-            <Link href="/" className="btn-ghost text-xs hidden sm:inline-flex items-center gap-1">
-              ← Tienda
+            <Link
+              href="/"
+              className="btn-ghost text-xs inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/[0.08] hover:border-[#C8A961]/40"
+              title="Volver a la Tienda"
+            >
+              <ArrowLeft size={14} className="text-[#C8A961]" />
+              <span className="hidden sm:inline">Tienda</span>
             </Link>
             <button className="relative p-2 rounded-lg hover:bg-white/[0.05] transition-colors">
               <Bell size={18} className="text-tactical-400" />

@@ -197,13 +197,13 @@ export default function DriverOrdersPage() {
                     <span className="text-xs text-neutral-400 block mt-0.5">Zona: <strong className="text-white">{zone?.name || 'Zona General'}</strong></span>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 self-end sm:self-auto">
-                  <div className="text-right">
+                <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                  <div className="text-left sm:text-right">
                     <span className="text-[10px] text-neutral-500 uppercase font-mono block">TU COMISIÓN</span>
                     <div className="text-lg font-mono font-black text-[#C8A961]">+Bs. {commission.toFixed(2)}</div>
                   </div>
                   {activeTab === 'available' && (
-                    <button onClick={() => driverAcceptOrder(order.id)} className="btn-tactical text-xs px-4 py-2.5 flex items-center gap-1.5 shadow-lg shadow-[#C8A961]/20">
+                    <button onClick={() => driverAcceptOrder(order.id)} className="btn-tactical text-xs px-4 py-2.5 flex items-center justify-center gap-1.5 shadow-lg shadow-[#C8A961]/20 flex-1 sm:flex-initial">
                       <Navigation size={14} /> ACEPTAR PEDIDO
                     </button>
                   )}
@@ -249,10 +249,10 @@ export default function DriverOrdersPage() {
                       </>
                     ) : (<span className="text-[11px] text-neutral-500 italic">Sin teléfono registrado</span>)}
                   </div>
-                  <div className="flex items-center gap-2">
-                    {order.status === 'assigned' && (<button onClick={() => driverPickupOrder(order.id)} className="btn-tactical text-xs py-2 px-3.5 flex items-center gap-1.5"><Package size={14} /> RECOGIDO EN TIENDA</button>)}
-                    {order.status === 'picked_up' && (<button onClick={() => driverInTransit(order.id)} className="btn-tactical text-xs py-2 px-3.5 flex items-center gap-1.5"><Truck size={14} /> INICIAR RUTA</button>)}
-                    {order.status === 'in_transit' && (<button onClick={() => driverDeliverOrder(order.id)} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-lg shadow-emerald-600/20"><CheckCircle2 size={14} /> CONFIRMAR ENTREGA</button>)}
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    {order.status === 'assigned' && (<button onClick={() => driverPickupOrder(order.id)} className="btn-tactical text-xs py-2.5 px-4 flex items-center justify-center gap-1.5 w-full sm:w-auto"><Package size={14} /> RECOGIDO EN TIENDA</button>)}
+                    {order.status === 'picked_up' && (<button onClick={() => driverInTransit(order.id)} className="btn-tactical text-xs py-2.5 px-4 flex items-center justify-center gap-1.5 w-full sm:w-auto"><Truck size={14} /> INICIAR RUTA</button>)}
+                    {order.status === 'in_transit' && (<button onClick={() => driverDeliverOrder(order.id)} className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-lg shadow-emerald-600/20 w-full sm:w-auto"><CheckCircle2 size={14} /> CONFIRMAR ENTREGA</button>)}
                   </div>
                 </div>
               )}
@@ -277,8 +277,8 @@ export default function DriverOrdersPage() {
 
       {/* ============ CASH SETTLEMENT MODAL ============ */}
       {showSettlementModal && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in" onClick={e => { if (e.target === e.currentTarget) setShowSettlementModal(false); }}>
-          <div className="relative w-full max-w-lg rounded-2xl border border-[#C8A961]/30 bg-[#0B0B10]/98 p-6 space-y-5 shadow-[0_25px_80px_rgba(0,0,0,0.95)]">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-xl animate-fade-in" onClick={e => { if (e.target === e.currentTarget) setShowSettlementModal(false); }}>
+          <div className="relative w-full max-w-lg rounded-2xl border border-[#C8A961]/30 bg-[#0B0B10]/98 max-h-[92vh] overflow-y-auto p-5 sm:p-6 space-y-5 shadow-[0_25px_80px_rgba(0,0,0,0.95)]">
             <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#C8A961] to-transparent" />
 
             <div className="flex items-center justify-between">
@@ -377,10 +377,12 @@ export default function DriverOrdersPage() {
               <textarea value={settlementNotes} onChange={e => setSettlementNotes(e.target.value)} placeholder={settlementMethod === 'physical_delivery' ? 'Ej: Paso a dejar el dinero hoy a las 18:00 en tienda' : 'Ej: Transferencia desde Banco Unión'} className="input-tactical text-xs w-full h-20 resize-none" />
             </div>
 
-            <button onClick={handleSubmitSettlement} className="btn-tactical w-full py-3 text-sm font-bold flex items-center justify-center gap-2">
-              <CheckCircle2 size={16} />
-              {settlementMethod === 'qr_transfer' ? 'ENVIAR COMPROBANTE DE RENDICIÓN' : 'CONFIRMAR ENTREGA FÍSICA EN BASE'}
-            </button>
+            <div className="sticky bottom-0 bg-[#0B0B10]/95 backdrop-blur-md -mx-5 sm:-mx-6 px-5 sm:px-6 py-3 border-t border-white/[0.08] z-20">
+              <button onClick={handleSubmitSettlement} className="btn-tactical w-full py-3 text-sm font-bold flex items-center justify-center gap-2">
+                <CheckCircle2 size={16} />
+                {settlementMethod === 'qr_transfer' ? 'ENVIAR COMPROBANTE DE RENDICIÓN' : 'CONFIRMAR ENTREGA FÍSICA EN BASE'}
+              </button>
+            </div>
           </div>
         </div>
       )}

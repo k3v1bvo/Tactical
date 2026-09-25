@@ -48,7 +48,7 @@ export default function OrdersPage() {
     <div className="min-h-screen bg-[#0A0A0B] text-white">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-28 pb-24">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-32 sm:pb-24">
         <div className="flex items-center justify-between gap-4 mb-6">
           <div>
             <span className="text-[11px] font-mono tracking-widest text-[#C8A961] uppercase block mb-1">

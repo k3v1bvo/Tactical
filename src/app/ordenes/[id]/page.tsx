@@ -201,7 +201,7 @@ export default function OrderTrackingPage() {
     <div className="min-h-screen bg-[#0A0A0B] text-white">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-4 pt-28 pb-24">
+      <main className="max-w-4xl mx-auto px-4 pt-24 sm:pt-28 pb-32 sm:pb-24">
         {/* Top actions */}
         <div className="flex items-center justify-between gap-4 mb-6">
           <button
@@ -555,6 +555,17 @@ export default function OrderTrackingPage() {
                 </div>
               )}
             </div>
+
+            {/* Direct WhatsApp Support */}
+            <a
+              href={`https://wa.me/59178494191?text=${encodeURIComponent(`Hola Tienda Táctica, tengo una consulta sobre mi Orden #${order.id.toUpperCase()} por Bs. ${order.total.toFixed(2)}.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition active:scale-98 shadow-sm"
+            >
+              <MessageCircle size={15} />
+              <span>Contactar Soporte por WhatsApp</span>
+            </a>
           </div>
         </div>
       </main>

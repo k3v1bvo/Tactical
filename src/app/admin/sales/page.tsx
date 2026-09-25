@@ -24,7 +24,10 @@ import {
   Bike,
   Bus,
   Sparkles,
-  Calendar
+  Calendar,
+  X,
+  MessageCircle,
+  ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -193,7 +196,90 @@ export default function AdminSalesPage() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Table of Orders */}
         <div className="xl:col-span-2 glass-card-static border border-white/[0.06] overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile Card List (visible on sm:hidden) */}
+          <div className="block sm:hidden divide-y divide-white/[0.06]">
+            {filteredOrders.map(order => {
+              const config = statusConfig[order.status] || statusConfig.pending;
+              const isSelected = selectedOrderId === order.id;
+              const delType = deliveryTypeConfig[order.delivery_type || 'delivery'] || deliveryTypeConfig.delivery;
+              const payMode = paymentModeConfig[order.payment_mode || 'full_payment'] || paymentModeConfig.full_payment;
+              const DelIcon = delType.icon;
+
+              return (
+                <div
+                  key={order.id}
+                  onClick={() => {
+                    setSelectedOrderId(order.id);
+                    document.getElementById('order-detail-panel')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className={`p-4 transition cursor-pointer active:bg-white/[0.04] ${
+                    isSelected ? 'bg-[#C8A961]/10 border-l-2 border-[#C8A961]' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-white text-sm">
+                        #{order.id.toUpperCase()}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border uppercase tracking-wider ${config.badge}`}>
+                        {config.label}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-neutral-500 font-mono">
+                      {new Date(order.created_at).toLocaleDateString('es-BO')}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <div>
+                      <span className="font-semibold text-neutral-200 block">{order.customer_name || 'Cliente'}</span>
+                      <span className="text-[11px] text-neutral-400 font-mono">{order.customer_phone || 'Sin WhatsApp'}</span>
+                    </div>
+                    <div className="text-right font-mono">
+                      <div className="font-bold text-[#C8A961] text-sm">Bs. {order.total.toFixed(2)}</div>
+                      {order.pending_amount && order.pending_amount > 0 ? (
+                        <div className="text-[10px] text-cyan-400">Saldo: Bs. {order.pending_amount.toFixed(2)}</div>
+                      ) : (
+                        <div className="text-[10px] text-emerald-400">100% Pagado</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/[0.04]">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono border ${delType.badge}`}>
+                        <DelIcon size={10} /> {delType.label}
+                      </span>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono border ${payMode.badge}`}>
+                        {payMode.label}
+                      </span>
+                      {order.free_gift && (
+                        <span className="text-[9px] text-[#C8A961] flex items-center gap-1 font-bold">
+                          <Gift size={9} /> Regalo 🎁
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="text-[11px] font-mono text-[#C8A961] flex items-center gap-1 hover:underline"
+                    >
+                      {isSelected ? 'Gestionando' : 'Gestionar'} <ChevronRight size={12} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {filteredOrders.length === 0 && (
+              <div className="text-center py-12 text-neutral-500 text-xs">
+                No se encontraron órdenes coincidentes con los filtros.
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table (hidden on sm:hidden) */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="table-tactical w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-white/[0.08] text-neutral-400 uppercase font-mono">
@@ -315,7 +401,7 @@ export default function AdminSalesPage() {
         </div>
 
         {/* Order Detail & Action Panel */}
-        <div className="xl:col-span-1">
+        <div className="xl:col-span-1" id="order-detail-panel">
           {selectedOrder ? (
             <div className="glass-card-static p-5 border border-[#C8A961]/30 space-y-4 animate-fade-in text-xs">
               <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
@@ -328,14 +414,24 @@ export default function AdminSalesPage() {
                   </div>
                 </div>
 
-                <Link
-                  href={`/ordenes/${selectedOrder.id}`}
-                  target="_blank"
-                  className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-[#C8A961] flex items-center gap-1 text-[10px] font-mono transition"
-                  title="Ver pantalla del cliente"
-                >
-                  <ExternalLink size={12} /> Ver en Vivo
-                </Link>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSelectedOrderId(null)}
+                    className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-neutral-400 hover:text-white sm:hidden flex items-center gap-1 text-[10px] font-mono transition"
+                    title="Cerrar detalle"
+                  >
+                    <X size={12} /> Cerrar
+                  </button>
+
+                  <Link
+                    href={`/ordenes/${selectedOrder.id}`}
+                    target="_blank"
+                    className="p-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-[#C8A961] flex items-center gap-1 text-[10px] font-mono transition"
+                    title="Ver pantalla del cliente"
+                  >
+                    <ExternalLink size={12} /> Ver en Vivo
+                  </Link>
+                </div>
               </div>
 
               {/* Status banner */}

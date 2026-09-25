@@ -309,9 +309,100 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      {/* Products Table */}
+      {/* Products Table & Mobile Cards */}
       <div className="bg-[#141416] border border-[#26262A] rounded-2xl overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
+        {/* Mobile Cards (Visible on screens < sm) */}
+        <div className="block sm:hidden divide-y divide-[#26262A]">
+          {filteredProducts.map(product => {
+            const isLow = product.stock <= product.low_stock_threshold && product.stock > 0;
+            const isOut = product.stock === 0;
+
+            return (
+              <div key={product.id} className="p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-[#1C1C1F] border border-[#26262A] flex-shrink-0">
+                    {product.images[0] ? (
+                      <Image
+                        src={product.images[0]}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                        sizes="56px"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[#6B6B72]">
+                        <Package size={22} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <span className="text-[10px] text-[#A1A1AA] font-mono">
+                        {categories.find(c => c.id === product.category_id)?.name || 'General'}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold ${product.is_active ? 'bg-[#30A46C]/15 text-[#30A46C]' : 'bg-[#E5484D]/15 text-[#E5484D]'}`}>
+                        {product.is_active ? 'ACTIVO' : 'INACTIVO'}
+                      </span>
+                    </div>
+                    <div className="font-bold text-white text-xs truncate">
+                      {product.name}
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="font-mono font-bold text-[#C8A961] text-sm">
+                        Bs. {product.price.toFixed(2)}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${isOut ? 'bg-[#E5484D]' : isLow ? 'bg-[#F5A623] animate-pulse' : 'bg-[#30A46C]'}`} />
+                        <span className={`font-mono text-[11px] font-semibold ${isOut ? 'text-[#E5484D]' : isLow ? 'text-[#F5A623]' : 'text-neutral-300'}`}>
+                          {product.stock} uds
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile action buttons */}
+                <div className="flex items-center gap-2 pt-2 border-t border-[#26262A]">
+                  <button
+                    onClick={() => openEditProductModal(product)}
+                    className="flex-1 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-neutral-200 flex items-center justify-center gap-1.5 transition active:scale-95"
+                  >
+                    <Edit size={13} className="text-[#C8A961]" /> Editar
+                  </button>
+
+                  <button
+                    onClick={() => handleToggleProductActive(product)}
+                    className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition active:scale-95 ${
+                      product.is_active
+                        ? 'border-[#30A46C]/30 text-[#30A46C] hover:bg-[#30A46C]/10'
+                        : 'border-[#6B6B72]/30 text-[#6B6B72] hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    {product.is_active ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                    <span className="text-[10px] font-mono">{product.is_active ? 'ON' : 'OFF'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteProduct(product)}
+                    className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-[#E5484D] transition active:scale-95"
+                    title="Eliminar producto"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {filteredProducts.length === 0 && (
+            <div className="text-center py-12 text-[#6B6B72] text-xs">
+              No se encontraron productos coincidentes con los filtros.
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Table (hidden on sm:hidden) */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-[#26262A] bg-[#0E0E10] text-[#6B6B72] font-mono uppercase tracking-wider">
@@ -490,8 +581,8 @@ export default function AdminProductsPage() {
 
       {/* MODAL PRODUCTO (CREAR / EDITAR) */}
       {isProductModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#141416] border border-[#3A3A40] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 relative shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#141416] border border-[#3A3A40] rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto p-5 sm:p-6 relative shadow-2xl">
             <button
               onClick={() => setIsProductModalOpen(false)}
               className="absolute top-4 right-4 p-2 text-[#A1A1AA] hover:text-white rounded-lg"
@@ -732,7 +823,7 @@ export default function AdminProductsPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-[#26262A]">
+              <div className="sticky bottom-0 bg-[#141416]/95 backdrop-blur-md -mx-5 sm:-mx-6 px-5 sm:px-6 py-3 border-t border-[#26262A] flex justify-end gap-3 z-20">
                 <button
                   type="button"
                   onClick={() => setIsProductModalOpen(false)}
@@ -740,7 +831,7 @@ export default function AdminProductsPage() {
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn-tactical text-xs">
+                <button type="submit" className="btn-tactical text-xs px-5">
                   {editingProduct ? 'Guardar Cambios' : 'Publicar Producto'}
                 </button>
               </div>
@@ -751,8 +842,8 @@ export default function AdminProductsPage() {
 
       {/* MODAL CATEGORÍA (CREAR / EDITAR) */}
       {isCategoryModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#141416] border border-[#3A3A40] rounded-2xl w-full max-w-md p-6 relative shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-[#141416] border border-[#3A3A40] rounded-2xl w-full max-w-md max-h-[92vh] overflow-y-auto p-5 sm:p-6 relative shadow-2xl">
             <button
               onClick={() => setIsCategoryModalOpen(false)}
               className="absolute top-4 right-4 p-2 text-[#A1A1AA] hover:text-white rounded-lg"
@@ -792,7 +883,7 @@ export default function AdminProductsPage() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-[#26262A]">
+              <div className="sticky bottom-0 bg-[#141416]/95 backdrop-blur-md -mx-5 sm:-mx-6 px-5 sm:px-6 py-3 border-t border-[#26262A] flex justify-end gap-3 z-20">
                 <button
                   type="button"
                   onClick={() => setIsCategoryModalOpen(false)}
@@ -800,7 +891,7 @@ export default function AdminProductsPage() {
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="btn-tactical text-xs">
+                <button type="submit" className="btn-tactical text-xs px-5">
                   {editingCategory ? 'Guardar Cambios' : 'Crear Categoría'}
                 </button>
               </div>

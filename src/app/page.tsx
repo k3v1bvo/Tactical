@@ -595,7 +595,7 @@ export default function HomePage() {
             </div>
 
             {/* Category Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 no-scrollbar touch-pan-x">
               <button
                 onClick={() => {
                   tacticalAudio.playBlip();
@@ -972,7 +972,7 @@ export default function HomePage() {
       {/* ================================================================= */}
       {/* FOOTER                                                              */}
       {/* ================================================================= */}
-      <footer className="border-t border-[#22222A] bg-[#030305] pt-16 pb-10 relative">
+      <footer className="border-t border-[#22222A] bg-[#030305] pt-16 pb-28 sm:pb-12 relative">
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#C8A961]/30 to-transparent" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
