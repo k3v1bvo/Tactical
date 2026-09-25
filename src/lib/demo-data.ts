@@ -371,9 +371,9 @@ export const demoProducts: Product[] = [
   },
 ];
 
-// ============ ORDERS ============
 const now = new Date();
 const daysAgo = (d: number) => new Date(now.getTime() - d * 86400000).toISOString();
+const daysFromNowDateStr = (d: number) => new Date(now.getTime() + d * 86400000).toISOString().split('T')[0];
 
 export const demoDriverEarnings: DriverEarning[] = [
   { id: 'earn-01', driver_id: 'vendor-01', order_id: 'ord-001', amount: 10.00, zone_id: 'zone-01', status: 'paid', paid_at: daysAgo(20), created_at: daysAgo(24) },
@@ -683,6 +683,7 @@ export const demoFixedAmountQRs: FixedAmountQR[] = [
     is_active: true,
     is_default: false,
     expiration_years: '3 años',
+    expiration_date: daysFromNowDateStr(365 * 3),
     notes: 'QR estático oficial para abonos exactos de Bs. 50.00',
     created_at: daysAgo(60),
   },
@@ -695,7 +696,8 @@ export const demoFixedAmountQRs: FixedAmountQR[] = [
     is_active: true,
     is_default: false,
     expiration_years: '3 años',
-    notes: 'QR estático para órdenes de Bs. 100.00',
+    expiration_date: daysFromNowDateStr(7),
+    notes: 'QR estático para órdenes de Bs. 100.00 (Vence en 7 días - Aviso preventivo)',
     created_at: daysAgo(60),
   },
   {
@@ -707,7 +709,8 @@ export const demoFixedAmountQRs: FixedAmountQR[] = [
     is_active: true,
     is_default: false,
     expiration_years: '3 años',
-    notes: 'QR estático para órdenes de Bs. 150.00',
+    expiration_date: daysFromNowDateStr(2),
+    notes: 'QR estático para órdenes de Bs. 150.00 (Vence en 2 días - Alerta urgente)',
     created_at: daysAgo(50),
   },
   {
@@ -719,7 +722,8 @@ export const demoFixedAmountQRs: FixedAmountQR[] = [
     is_active: true,
     is_default: false,
     expiration_years: '3 años',
-    notes: 'QR estático para órdenes de Bs. 200.00',
+    expiration_date: daysFromNowDateStr(0),
+    notes: 'QR estático para órdenes de Bs. 200.00 (¡Vence Hoy! - Crítico)',
     created_at: daysAgo(40),
   },
   {
@@ -731,6 +735,7 @@ export const demoFixedAmountQRs: FixedAmountQR[] = [
     is_active: true,
     is_default: false,
     expiration_years: '3 años',
+    expiration_date: daysFromNowDateStr(365),
     notes: 'QR estático para combos y chalecos de Bs. 350.00',
     created_at: daysAgo(30),
   },
@@ -743,6 +748,7 @@ export const demoFixedAmountQRs: FixedAmountQR[] = [
     is_active: true,
     is_default: true,
     expiration_years: 'Sin expiración (Estático)',
+    expiration_date: daysFromNowDateStr(365 * 3),
     notes: 'QR comodín sin monto fijo. Si el total de la orden no coincide con un QR pre-generado, se muestra este QR para que el cliente digite el monto manualmente.',
     created_at: daysAgo(90),
   },

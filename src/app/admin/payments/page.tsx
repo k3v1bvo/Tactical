@@ -30,6 +30,8 @@ import {
   Sparkles,
   Sliders,
   Save,
+  BellRing,
+  Calendar,
 } from 'lucide-react';
 import {
   parseBankNotification,
@@ -47,6 +49,103 @@ import type {
   ActivePaymentProvider,
   PaymentGatewaySettings,
 } from '@/lib/types';
+
+export type QRExpirationAlertLevel = 'expired' | 'today' | 'warning_3d' | 'warning_7d' | 'valid' | 'none';
+
+export interface QRExpirationInfo {
+  status: QRExpirationAlertLevel;
+  diffDays: number | null;
+  label: string;
+  badgeClass: string;
+  isUrgent: boolean;
+  isExpired: boolean;
+}
+
+export function getQRExpirationStatus(expirationDate?: string | null): QRExpirationInfo {
+  if (!expirationDate) {
+    return {
+      status: 'none',
+      diffDays: null,
+      label: 'Sin caducidad',
+      badgeClass: 'bg-white/[0.04] text-tactical-400 border-white/[0.08]',
+      isUrgent: false,
+      isExpired: false,
+    };
+  }
+
+  const parts = expirationDate.split('-');
+  if (parts.length !== 3) {
+    return {
+      status: 'none',
+      diffDays: null,
+      label: expirationDate,
+      badgeClass: 'bg-white/[0.04] text-tactical-400 border-white/[0.08]',
+      isUrgent: false,
+      isExpired: false,
+    };
+  }
+
+  const expYear = parseInt(parts[0], 10);
+  const expMonth = parseInt(parts[1], 10) - 1;
+  const expDay = parseInt(parts[2], 10);
+
+  const expDate = new Date(expYear, expMonth, expDay, 23, 59, 59);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diffMs = expDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return {
+      status: 'expired',
+      diffDays,
+      label: `EXPIRADO hace ${Math.abs(diffDays)}d`,
+      badgeClass: 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse font-bold',
+      isUrgent: true,
+      isExpired: true,
+    };
+  }
+  if (diffDays === 0 || diffDays === 1) {
+    return {
+      status: 'today',
+      diffDays: 0,
+      label: '¡VENCE HOY!',
+      badgeClass: 'bg-red-500/30 text-red-200 border-red-500/60 animate-pulse font-black',
+      isUrgent: true,
+      isExpired: false,
+    };
+  }
+  if (diffDays <= 3) {
+    return {
+      status: 'warning_3d',
+      diffDays,
+      label: `¡Vence en ${diffDays} días!`,
+      badgeClass: 'bg-orange-500/20 text-orange-300 border-orange-500/40 font-bold',
+      isUrgent: true,
+      isExpired: false,
+    };
+  }
+  if (diffDays <= 7) {
+    return {
+      status: 'warning_7d',
+      diffDays,
+      label: `Vence en ${diffDays} días (1 sem)`,
+      badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-semibold',
+      isUrgent: false,
+      isExpired: false,
+    };
+  }
+
+  return {
+    status: 'valid',
+    diffDays,
+    label: `Vigente (${diffDays} días)`,
+    badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 font-mono',
+    isUrgent: false,
+    isExpired: false,
+  };
+}
 
 const statusConfig: Record<PaymentStatus, { label: string; badge: string; icon: typeof Clock }> = {
   pending: { label: 'Pendiente', badge: 'badge-pending', icon: Clock },
@@ -94,7 +193,7 @@ export default function AdminPaymentsPage() {
 
   // Search & Filter in QR Matrix
   const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'fixed' | 'default' | 'active'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'fixed' | 'default' | 'active' | 'expiring'>('all');
 
   // Modal States for QR CRUD
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -107,6 +206,7 @@ export default function AdminPaymentsPage() {
   const [formBank, setFormBank] = useState(BOLIVIA_BANK_PRESETS[0]);
   const [formAccountName, setFormAccountName] = useState('Tienda Táctica Bolivia SRL');
   const [formExpiration, setFormExpiration] = useState('3 años');
+  const [formExpirationDate, setFormExpirationDate] = useState('');
   const [formIsActive, setFormIsActive] = useState(true);
   const [formIsDefault, setFormIsDefault] = useState(false);
   const [formNotes, setFormNotes] = useState('');
@@ -332,6 +432,7 @@ export default function AdminPaymentsPage() {
     setFormBank(BOLIVIA_BANK_PRESETS[0]);
     setFormAccountName('Tienda Táctica Bolivia SRL');
     setFormExpiration('3 años');
+    setFormExpirationDate('');
     setFormIsActive(true);
     setFormIsDefault(false);
     setFormNotes('');
@@ -348,6 +449,7 @@ export default function AdminPaymentsPage() {
     setFormBank(qr.bank_name || BOLIVIA_BANK_PRESETS[0]);
     setFormAccountName(qr.account_name || 'Tienda Táctica Bolivia SRL');
     setFormExpiration(qr.expiration_years || '3 años');
+    setFormExpirationDate(qr.expiration_date || '');
     setFormIsActive(qr.is_active);
     setFormIsDefault(qr.is_default);
     setFormNotes(qr.notes || '');
@@ -372,6 +474,8 @@ export default function AdminPaymentsPage() {
       }
     }
 
+    const expDate = formExpirationDate.trim() || null;
+
     setIsSubmitting(true);
     try {
       if (editingQR) {
@@ -383,6 +487,7 @@ export default function AdminPaymentsPage() {
           is_active: formIsActive,
           is_default: formIsDefault,
           expiration_years: formExpiration,
+          expiration_date: expDate,
           notes: formNotes.trim() || null,
         });
       } else {
@@ -394,6 +499,7 @@ export default function AdminPaymentsPage() {
           is_active: formIsActive,
           is_default: formIsDefault,
           expiration_years: formExpiration,
+          expiration_date: expDate,
           notes: formNotes.trim() || null,
         });
       }
@@ -427,10 +533,39 @@ export default function AdminPaymentsPage() {
       if (typeFilter === 'fixed') return qr.amount !== null && !qr.is_default;
       if (typeFilter === 'default') return qr.is_default || qr.amount === null;
       if (typeFilter === 'active') return qr.is_active;
+      if (typeFilter === 'expiring') {
+        const expStatus = getQRExpirationStatus(qr.expiration_date);
+        return (
+          expStatus.status === 'expired' ||
+          expStatus.status === 'today' ||
+          expStatus.status === 'warning_3d' ||
+          expStatus.status === 'warning_7d'
+        );
+      }
 
       return true;
     });
   }, [fixedAmountQRs, searchQuery, typeFilter]);
+
+  // Expiration stats
+  const qrExpiryStats = useMemo(() => {
+    let expired = 0;
+    let today = 0;
+    let warning3d = 0;
+    let warning7d = 0;
+
+    fixedAmountQRs.forEach(qr => {
+      if (!qr.is_active || !qr.expiration_date) return;
+      const st = getQRExpirationStatus(qr.expiration_date);
+      if (st.status === 'expired') expired++;
+      else if (st.status === 'today') today++;
+      else if (st.status === 'warning_3d') warning3d++;
+      else if (st.status === 'warning_7d') warning7d++;
+    });
+
+    const totalAlerts = expired + today + warning3d + warning7d;
+    return { expired, today, warning3d, warning7d, totalAlerts };
+  }, [fixedAmountQRs]);
 
   // Simulator evaluation
   const evaluatedSimulation = useMemo(() => {
@@ -535,6 +670,88 @@ export default function AdminPaymentsPage() {
       {/* TAB 1: MATRIZ DE QRs ESTÁTICOS */}
       {activeTab === 'matrix' && (
         <div className="space-y-5 animate-fade-in">
+          {/* EXPIRATION ALERT BANNER IF ANY QR IS EXPIRING OR EXPIRED */}
+          {qrExpiryStats.totalAlerts > 0 && (
+            <div
+              className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl ${
+                qrExpiryStats.expired > 0 || qrExpiryStats.today > 0
+                  ? 'bg-red-950/30 border-red-500/50 shadow-red-500/10'
+                  : 'bg-amber-950/30 border-amber-500/50 shadow-amber-500/10'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                    qrExpiryStats.expired > 0 || qrExpiryStats.today > 0
+                      ? 'bg-red-500/20 text-red-400'
+                      : 'bg-amber-500/20 text-amber-400'
+                  }`}
+                >
+                  <BellRing size={20} className="animate-bounce" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className={`text-xs font-mono font-black uppercase tracking-wider ${
+                        qrExpiryStats.expired > 0 || qrExpiryStats.today > 0 ? 'text-red-400' : 'text-amber-400'
+                      }`}
+                    >
+                      {qrExpiryStats.expired > 0
+                        ? '🚨 ALERTA CRÍTICA: CÓDIGOS QR EXPIRADOS O POR VENCER'
+                        : qrExpiryStats.today > 0
+                        ? '⚠️ ALERTA URGENTE: CÓDIGOS QR QUE VENCEN HOY'
+                        : '⚠️ AVISO PREVENTIVO: CÓDIGOS QR PRÓXIMOS A VENCER'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-white font-mono text-[10px] font-bold">
+                      {qrExpiryStats.totalAlerts} en alerta
+                    </span>
+                  </div>
+                  <p className="text-xs text-tactical-200 mt-1 leading-relaxed">
+                    Los códigos QR generados en Simple QR / banca móvil tienen caducidad. Si expiran, las aplicaciones bancarias de tus clientes arrojarán error y no podrán transferir. Renuévalos antes de la fecha límite.
+                  </p>
+
+                  {/* Quick Breakdown Badges */}
+                  <div className="flex items-center gap-2 flex-wrap mt-2">
+                    {qrExpiryStats.expired > 0 && (
+                      <span className="px-2 py-0.5 rounded bg-red-500/30 text-red-200 border border-red-500/50 text-[10px] font-mono font-bold animate-pulse">
+                        {qrExpiryStats.expired} Expirado{qrExpiryStats.expired > 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {qrExpiryStats.today > 0 && (
+                      <span className="px-2 py-0.5 rounded bg-red-500/30 text-red-200 border border-red-500/50 text-[10px] font-mono font-bold animate-pulse">
+                        {qrExpiryStats.today} Vence{qrExpiryStats.today > 1 ? 'n' : ''} Hoy
+                      </span>
+                    )}
+                    {qrExpiryStats.warning3d > 0 && (
+                      <span className="px-2 py-0.5 rounded bg-orange-500/30 text-orange-200 border border-orange-500/50 text-[10px] font-mono font-bold">
+                        {qrExpiryStats.warning3d} Vence{qrExpiryStats.warning3d > 1 ? 'n' : ''} en ≤ 3 días
+                      </span>
+                    )}
+                    {qrExpiryStats.warning7d > 0 && (
+                      <span className="px-2 py-0.5 rounded bg-amber-500/30 text-amber-200 border border-amber-500/50 text-[10px] font-mono font-semibold">
+                        {qrExpiryStats.warning7d} Vence{qrExpiryStats.warning7d > 1 ? 'n' : ''} en ≤ 7 días
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTypeFilter(typeFilter === 'expiring' ? 'all' : 'expiring')}
+                  className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+                    typeFilter === 'expiring'
+                      ? 'bg-white text-black font-black shadow-md'
+                      : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                  }`}
+                >
+                  <Filter size={13} /> {typeFilter === 'expiring' ? 'Ver Todos los QRs' : 'Filtrar QRs en Riesgo'}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Key Metric Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="metric-card">
@@ -575,10 +792,16 @@ export default function AdminPaymentsPage() {
             <div className="metric-card">
               <div className="flex items-center gap-2 mb-1.5">
                 <Clock size={15} className="text-purple-400" />
-                <span className="text-xs text-tactical-400">Vigencia Promedio</span>
+                <span className="text-xs text-tactical-400">Alertas de Vencimiento</span>
               </div>
-              <div className="text-xl font-bold text-white">3+ Años</div>
-              <span className="text-[10px] text-tactical-500">QRs estáticos bancarios</span>
+              <div
+                className={`text-xl font-bold ${
+                  qrExpiryStats.totalAlerts > 0 ? 'text-amber-400' : 'text-emerald-400'
+                }`}
+              >
+                {qrExpiryStats.totalAlerts > 0 ? `${qrExpiryStats.totalAlerts} por renovar` : 'Al día'}
+              </div>
+              <span className="text-[10px] text-tactical-500">Monitoreo continuo</span>
             </div>
           </div>
 
@@ -625,6 +848,9 @@ export default function AdminPaymentsPage() {
                 <option value="fixed">Solo Montos Fijos</option>
                 <option value="default">Solo Comodín / Sin Monto</option>
                 <option value="active">Solo Activos</option>
+                <option value="expiring">
+                  ⚠️ Por Vencer o Expirados ({qrExpiryStats.totalAlerts})
+                </option>
               </select>
             </div>
           </div>
@@ -633,12 +859,17 @@ export default function AdminPaymentsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredQRs.map(qr => {
               const isDefault = qr.is_default || qr.amount === null;
+              const expStatus = getQRExpirationStatus(qr.expiration_date);
 
               return (
                 <div
                   key={qr.id}
                   className={`glass-card-static p-4 border transition relative overflow-hidden flex flex-col justify-between ${
-                    qr.is_active
+                    expStatus.isUrgent
+                      ? 'border-red-500/50 bg-red-950/10 shadow-lg shadow-red-500/10'
+                      : expStatus.status === 'warning_7d'
+                      ? 'border-amber-500/50 bg-amber-950/10'
+                      : qr.is_active
                       ? isDefault
                         ? 'border-amber-500/30 bg-amber-500/[0.02]'
                         : 'border-white/[0.08] hover:border-[#C8A961]/40'
@@ -647,7 +878,7 @@ export default function AdminPaymentsPage() {
                 >
                   {/* Top Badges */}
                   <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       {isDefault ? (
                         <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold uppercase border border-amber-500/30 flex items-center gap-1">
                           <AlertTriangle size={10} /> QR Comodín (Sin Monto)
@@ -655,6 +886,15 @@ export default function AdminPaymentsPage() {
                       ) : (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold uppercase border border-emerald-500/30 flex items-center gap-1">
                           <ShieldCheck size={10} /> Monto Exacto Bloqueado
+                        </span>
+                      )}
+
+                      {/* Expiration Status Badge */}
+                      {qr.expiration_date && (
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-mono border flex items-center gap-1 ${expStatus.badgeClass}`}
+                        >
+                          <Calendar size={10} /> {expStatus.label}
                         </span>
                       )}
                     </div>
@@ -707,6 +947,21 @@ export default function AdminPaymentsPage() {
                       <div className="text-[10px] text-tactical-500 flex items-center gap-1 font-mono">
                         <Clock size={10} /> Vigencia: {qr.expiration_years || '3 años'}
                       </div>
+
+                      {qr.expiration_date && (
+                        <div className="text-[10px] font-mono flex items-center gap-1 text-tactical-300">
+                          <Calendar
+                            size={10}
+                            className={expStatus.isUrgent ? 'text-red-400' : 'text-tactical-500'}
+                          />
+                          <span>
+                            Vence:{' '}
+                            <strong className={expStatus.isUrgent ? 'text-red-400 font-bold' : 'text-white'}>
+                              {qr.expiration_date}
+                            </strong>
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -728,6 +983,21 @@ export default function AdminPaymentsPage() {
                     </button>
 
                     <div className="flex items-center gap-1">
+                      {/* Direct Renew Button if expiring or expired */}
+                      {(expStatus.isUrgent || expStatus.status === 'warning_7d') && (
+                        <button
+                          onClick={() => openEditModal(qr)}
+                          className={`px-2 py-1 rounded text-[10px] font-mono font-bold flex items-center gap-1 transition mr-1 ${
+                            expStatus.isUrgent
+                              ? 'bg-red-500 hover:bg-red-400 text-white animate-pulse'
+                              : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'
+                          }`}
+                          title="Renovar imagen y fecha del QR"
+                        >
+                          <RefreshCw size={10} /> Renovar
+                        </button>
+                      )}
+
                       <a
                         href={qr.qr_image_url}
                         target="_blank"
@@ -2098,11 +2368,106 @@ export default function AdminPaymentsPage() {
                 </div>
               </div>
 
-              {/* Validity & Active Status */}
+              {/* Expiration Date Section (Alerts: 7 days, 3 days, same day) */}
+              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.08] space-y-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <label className="block text-xs font-mono uppercase text-tactical-200 font-bold flex items-center gap-1.5">
+                    <Calendar size={14} className="text-[#C8A961]" /> Fecha de Vencimiento del Banco
+                  </label>
+                  {formExpirationDate && (
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                        getQRExpirationStatus(formExpirationDate).badgeClass
+                      }`}
+                    >
+                      {getQRExpirationStatus(formExpirationDate).label}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-tactical-400 leading-relaxed">
+                  Ingresa la fecha de vencimiento que muestra tu app bancaria (Banco Unión, BCP, BNB, etc.). El sistema generará avisos automáticos a los <strong>7 días</strong>, <strong>3 días</strong> y el <strong>mismo día</strong> para que renueves el QR antes de que los pagos sean rechazados.
+                </p>
+
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={formExpirationDate}
+                    onChange={e => setFormExpirationDate(e.target.value)}
+                    className="input-tactical text-xs font-mono w-full"
+                  />
+                </div>
+
+                {/* Preset Calculation Buttons */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                  <span className="text-[10px] text-tactical-500 font-mono">Calcular rápido:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 30);
+                      setFormExpirationDate(d.toISOString().split('T')[0]);
+                      setFormExpiration('30 días');
+                    }}
+                    className="px-2 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-tactical-300 text-[10px] font-mono transition touch-manipulation"
+                  >
+                    +30 días
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 90);
+                      setFormExpirationDate(d.toISOString().split('T')[0]);
+                      setFormExpiration('3 meses');
+                    }}
+                    className="px-2 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-tactical-300 text-[10px] font-mono transition touch-manipulation"
+                  >
+                    +90 días (3 meses)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setFullYear(d.getFullYear() + 1);
+                      setFormExpirationDate(d.toISOString().split('T')[0]);
+                      setFormExpiration('1 año');
+                    }}
+                    className="px-2 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-tactical-300 text-[10px] font-mono transition touch-manipulation"
+                  >
+                    +1 año
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setFullYear(d.getFullYear() + 3);
+                      setFormExpirationDate(d.toISOString().split('T')[0]);
+                      setFormExpiration('3 años');
+                    }}
+                    className="px-2 py-1 rounded bg-white/[0.05] hover:bg-white/[0.1] text-tactical-300 text-[10px] font-mono transition touch-manipulation"
+                  >
+                    +3 años
+                  </button>
+                  {formExpirationDate && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormExpirationDate('');
+                        setFormExpiration('Sin expiración');
+                      }}
+                      className="px-2 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-mono transition ml-auto touch-manipulation"
+                    >
+                      Limpiar fecha
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Validity Label & Active Status */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-mono uppercase text-tactical-400 mb-1.5">
-                    Tiempo de Vigencia
+                    Etiqueta de Vigencia
                   </label>
                   <select
                     value={formExpiration}
@@ -2111,8 +2476,10 @@ export default function AdminPaymentsPage() {
                   >
                     <option value="3 años">3 años (Estático)</option>
                     <option value="5 años">5 años</option>
-                    <option value="Sin expiración">Sin expiración</option>
                     <option value="1 año">1 año</option>
+                    <option value="3 meses">3 meses</option>
+                    <option value="30 días">30 días</option>
+                    <option value="Sin expiración">Sin expiración</option>
                   </select>
                 </div>
 

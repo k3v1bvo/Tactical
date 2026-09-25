@@ -468,6 +468,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                 is_active: d.is_active !== undefined ? d.is_active : true,
                 is_default: d.is_default !== undefined ? d.is_default : false,
                 expiration_years: d.expiration_years || '3 años',
+                expiration_date: d.expiration_date || null,
                 notes: d.notes || null,
                 created_at: d.created_at || new Date().toISOString(),
                 updated_at: d.updated_at || new Date().toISOString(),
@@ -569,6 +570,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               is_active: row.is_active !== undefined ? row.is_active : true,
               is_default: row.is_default !== undefined ? row.is_default : false,
               expiration_years: row.expiration_years || '3 años',
+              expiration_date: row.expiration_date || null,
               notes: row.notes || null,
               created_at: row.created_at || new Date().toISOString(),
               updated_at: row.updated_at || new Date().toISOString(),
@@ -591,6 +593,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
                     is_active: row.is_active !== undefined ? row.is_active : q.is_active,
                     is_default: row.is_default !== undefined ? row.is_default : q.is_default,
                     expiration_years: row.expiration_years || q.expiration_years,
+                    expiration_date: row.expiration_date !== undefined ? row.expiration_date : q.expiration_date,
                     notes: row.notes !== undefined ? row.notes : q.notes,
                     updated_at: row.updated_at || new Date().toISOString(),
                   };
@@ -1915,6 +1918,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             is_active: newQR.is_active,
             is_default: newQR.is_default,
             expiration_years: newQR.expiration_years || '3 años',
+            expiration_date: newQR.expiration_date || null,
             notes: newQR.notes,
           })
           .select()
@@ -1960,6 +1964,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (updates.is_active !== undefined) payload.is_active = updates.is_active;
         if (updates.is_default !== undefined) payload.is_default = updates.is_default;
         if (updates.expiration_years !== undefined) payload.expiration_years = updates.expiration_years;
+        if (updates.expiration_date !== undefined) payload.expiration_date = updates.expiration_date;
         if (updates.notes !== undefined) payload.notes = updates.notes;
 
         await client.from('fixed_amount_qrs').update(payload).eq('id', id);
@@ -1998,23 +2003,45 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   const getQRForAmount = (amount: number): { qr: FixedAmountQR | null; isExactMatch: boolean; isDefault: boolean } => {
-    // 1. Coincidencia exacta con tolerancia de 0.01 centavos
-    const exact = fixedAmountQRs.find(
+    const isExpired = (q: FixedAmountQR) => {
+      if (!q.expiration_date) return false;
+      const exp = new Date(q.expiration_date + 'T23:59:59');
+      return !isNaN(exp.getTime()) && exp.getTime() < Date.now();
+    };
+
+    // 1. Coincidencia exacta con tolerancia de 0.01 centavos (priorizando no expirados)
+    const exactValid = fixedAmountQRs.find(
+      q => q.is_active && !isExpired(q) && q.amount !== null && Math.abs(q.amount - amount) < 0.01
+    );
+    if (exactValid) {
+      return { qr: exactValid, isExactMatch: true, isDefault: false };
+    }
+    const exactAny = fixedAmountQRs.find(
       q => q.is_active && q.amount !== null && Math.abs(q.amount - amount) < 0.01
     );
-    if (exact) {
-      return { qr: exact, isExactMatch: true, isDefault: false };
+    if (exactAny) {
+      return { qr: exactAny, isExactMatch: true, isDefault: false };
     }
 
-    // 2. QR comodín de respaldo (sin monto fijado o marcado como is_default)
-    const defaultQR = fixedAmountQRs.find(
+    // 2. QR comodín de respaldo (sin monto fijado o marcado como is_default, priorizando no expirados)
+    const defaultValid = fixedAmountQRs.find(
+      q => q.is_active && !isExpired(q) && (q.is_default || q.amount === null || q.amount === 0)
+    );
+    if (defaultValid) {
+      return { qr: defaultValid, isExactMatch: false, isDefault: true };
+    }
+    const defaultAny = fixedAmountQRs.find(
       q => q.is_active && (q.is_default || q.amount === null || q.amount === 0)
     );
-    if (defaultQR) {
-      return { qr: defaultQR, isExactMatch: false, isDefault: true };
+    if (defaultAny) {
+      return { qr: defaultAny, isExactMatch: false, isDefault: true };
     }
 
     // 3. Cualquier QR activo disponible
+    const anyActiveValid = fixedAmountQRs.find(q => q.is_active && !isExpired(q));
+    if (anyActiveValid) {
+      return { qr: anyActiveValid, isExactMatch: false, isDefault: anyActiveValid.is_default };
+    }
     const anyActive = fixedAmountQRs.find(q => q.is_active);
     if (anyActive) {
       return { qr: anyActive, isExactMatch: false, isDefault: anyActive.is_default };

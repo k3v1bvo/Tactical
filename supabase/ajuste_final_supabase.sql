@@ -33,6 +33,14 @@ BEGIN
     ALTER TABLE public.fixed_amount_qrs ADD COLUMN expiration_years text DEFAULT '3 años';
   END IF;
 
+  -- Columna expiration_date (fecha exacta de vencimiento bancario)
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'fixed_amount_qrs' AND column_name = 'expiration_date'
+  ) THEN
+    ALTER TABLE public.fixed_amount_qrs ADD COLUMN expiration_date date;
+  END IF;
+
   -- Columna notes (notas internas del admin)
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 

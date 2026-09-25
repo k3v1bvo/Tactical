@@ -100,6 +100,17 @@ export default function CheckoutPage() {
   const [isVerifyingReceipt, setIsVerifyingReceipt] = useState<boolean>(false);
   const [aiVerificationResult, setAiVerificationResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [copiedAmount, setCopiedAmount] = useState(false);
+
+  const handleCopyAmount = (amount: number) => {
+    const formatted = amount.toFixed(2);
+    navigator.clipboard.writeText(formatted);
+    setCopiedAmount(true);
+    toast.success(`Monto Bs. ${formatted} copiado`, {
+      description: 'Pégalo en tu aplicación bancaria o Yape al momento de transferir.',
+    });
+    setTimeout(() => setCopiedAmount(false), 2500);
+  };
 
   // Financial calculations in Bolivianos (Bs.)
   const activeZone = shippingZones.find(z => z.id === selectedZoneId) || shippingZones[0];
@@ -430,37 +441,66 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-left flex items-start gap-3 shadow-lg shadow-amber-500/5">
-                      <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <QrCode size={18} />
+                    <div className="p-4 rounded-xl bg-amber-500/10 border-2 border-amber-500/40 text-left flex flex-col gap-3 shadow-lg shadow-amber-500/10">
+                      <div className="flex items-start gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <QrCode size={20} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-mono font-bold uppercase text-amber-400">
+                              QR DE MONTO LIBRE (CERO) // INGRESO MANUAL REQUERIDO
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono text-[9px] uppercase font-bold">
+                              Digitar Monto Exacto
+                            </span>
+                          </div>
+                          <p className="text-xs text-neutral-300 mt-1 leading-relaxed">
+                            El total de tu orden no tiene un QR fijo asignado en la matriz. Por tanto, este código QR es de monto abierto (al escanearlo en tu banca aparecerá en <strong>Bs. 0.00</strong>). Para que tu pedido se concilie automáticamente, <strong className="text-white underline">debes ingresar manualmente el monto exacto de tu orden</strong>:
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-mono font-bold uppercase text-amber-400">
-                            QR COMODÍN // MONTO MANUAL REQUERIDO
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono text-[9px] uppercase font-bold">
-                            Digitar Monto
-                          </span>
+
+                      {/* Prominent Amount Box with 1-click Copy */}
+                      <div className="p-3 bg-black/60 rounded-xl border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div>
+                          <div className="text-[10px] font-mono uppercase text-amber-300/80">Monto exacto de tu orden a transferir:</div>
+                          <div className="text-2xl font-black font-mono text-amber-400">
+                            Bs. {amountToPayNow.toFixed(2)}
+                          </div>
+                          <div className="text-[11px] text-neutral-400">
+                            Banco: <strong className="text-white">{bankName}</strong> • Titular: <strong className="text-white">{accountName}</strong>
+                          </div>
                         </div>
-                        <p className="text-xs text-neutral-300 mt-1">
-                          El total de tu orden no tiene un QR fijo asignado en la matriz. Por favor, al escanear este código con tu app bancaria (<span className="text-amber-300">{bankName}</span>), <strong className="text-white underline">digita manualmente el monto exacto de Bs. {amountToPayNow.toFixed(2)}</strong>.
-                        </p>
-                        <div className="text-[11px] text-neutral-400 mt-1.5 flex items-center gap-2 flex-wrap">
-                          <span>Verifica Titular: <strong className="text-white">{accountName}</strong></span>
-                          <span>•</span>
-                          <span>Abono requerido: <strong className="text-amber-400 font-mono font-bold">Bs. {amountToPayNow.toFixed(2)}</strong></span>
-                        </div>
-                        <div className="text-[11px] text-amber-200/90 mt-2 p-2 rounded-lg bg-black/40 border border-amber-500/20 flex items-start gap-1.5">
-                          <span className="text-amber-400">💡</span>
-                          <span><strong>Validación Automática Inmediata:</strong> Al transferir en tu banco o Yape, en el campo <u>Motivo / Glosa</u> escribe: <strong className="text-white">{customerName ? customerName.split(' ')[0] : 'tu nombre'}</strong> para que nuestro sistema verifique tu pago en segundos.</span>
-                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleCopyAmount(amountToPayNow)}
+                          className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md shadow-amber-500/20"
+                        >
+                          {copiedAmount ? (
+                            <>
+                              <CheckCircle2 size={16} className="text-black" /> ¡Monto Copiado!
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={16} /> Copiar Monto ({amountToPayNow.toFixed(2)})
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="text-[11px] text-amber-200/90 p-2.5 rounded-lg bg-black/40 border border-amber-500/20 flex items-start gap-2">
+                        <span className="text-amber-400 text-base">💡</span>
+                        <span>
+                          <strong>Validación Automática Inmediata:</strong> Al transferir en tu banco o Yape, en el campo <u>Motivo / Glosa</u> escribe: <strong className="text-white">{customerName ? customerName.split(' ')[0] : 'tu nombre'}</strong> para que nuestro sistema verifique tu pago en segundos.
+                        </span>
                       </div>
                     </div>
                   )}
 
                   {/* QR Image Box */}
-                  <div className="p-4 bg-white rounded-2xl inline-block shadow-2xl border-4 border-[#C8A961]/40">
+                  <div className="p-4 bg-white rounded-2xl inline-block shadow-2xl border-4 border-[#C8A961]/40 text-center">
                     {qrImgSrc ? (
                       <div className="relative w-56 h-56 mx-auto flex items-center justify-center overflow-hidden">
                         <Image
@@ -475,6 +515,17 @@ export default function CheckoutPage() {
                     ) : (
                       <div className="w-56 h-56 bg-neutral-900 flex items-center justify-center text-xs text-neutral-400">
                         Cargando QR oficial...
+                      </div>
+                    )}
+                    {!isExact && (
+                      <div className="mt-2.5">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyAmount(amountToPayNow)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-black text-[11px] font-mono font-bold text-[#C8A961] border border-[#C8A961]/40 transition shadow-sm"
+                        >
+                          <Copy size={12} /> {copiedAmount ? '¡Copiado al portapapeles!' : `Copiar Bs. ${amountToPayNow.toFixed(2)}`}
+                        </button>
                       </div>
                     )}
                   </div>

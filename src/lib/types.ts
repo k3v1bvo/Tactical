@@ -186,6 +186,7 @@ export interface FixedAmountQR {
   is_active: boolean;                  // Habilitado para servir en checkout
   is_default: boolean;                 // true si es el QR comodín de respaldo cuando el monto no coincide
   expiration_years?: string;           // Ej: '3 años', '5 años', 'Sin expiración'
+  expiration_date?: string | null;     // Fecha exacta de vencimiento bancario ISO 'YYYY-MM-DD'
   notes?: string | null;               // Notas internas
   created_at: string;
   updated_at?: string;
