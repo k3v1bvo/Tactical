@@ -383,7 +383,7 @@ export default function AdminProductsPage() {
                   </button>
 
                   <button
-                    onClick={() => handleDeleteProduct(product)}
+                    onClick={() => deleteProduct(product.id)}
                     className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-[#E5484D] transition active:scale-95"
                     title="Eliminar producto"
                   >
