@@ -186,14 +186,16 @@ export function TiltProductCard({ product }: TiltProductCardProps) {
             <button
               onClick={handleQuickAdd}
               disabled={isOut}
-              className={`p-2.5 rounded-xl font-bold transition-all duration-200 flex items-center gap-1 shadow-md ${
+              className={`p-2.5 sm:p-2.5 min-h-[42px] min-w-[42px] rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-1.5 shadow-md touch-manipulation ${
                 isOut
                   ? 'bg-[#1c1c22] text-[#5E5E68] cursor-not-allowed'
                   : 'bg-[#C8A961] text-black hover:bg-[#DEC07A] active:scale-95 shadow-[0_4px_12px_rgba(200,169,97,0.3)] hover:shadow-[0_6px_20px_rgba(200,169,97,0.45)]'
               }`}
               title="Añadir al arsenal"
+              aria-label="Añadir al arsenal"
             >
-              <ShoppingCart size={15} />
+              <ShoppingCart size={17} />
+              <span className="text-[11px] font-mono font-bold sm:hidden">AGREGAR</span>
             </button>
           </div>
         </div>

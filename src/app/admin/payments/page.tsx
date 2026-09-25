@@ -458,38 +458,38 @@ export default function AdminPaymentsPage() {
         {/* Global Action: Add QR */}
         <button
           onClick={openCreateModal}
-          className="btn-tactical flex items-center justify-center gap-2 text-xs py-2.5 px-4 shadow-lg shadow-[#C8A961]/10 flex-shrink-0"
+          className="btn-tactical flex items-center justify-center gap-2 text-xs py-3 px-4 shadow-lg shadow-[#C8A961]/15 w-full sm:w-auto font-bold flex-shrink-0 active:scale-95 touch-manipulation"
         >
           <Plus size={16} /> Agregar QR a la Matriz
         </button>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/[0.08] overflow-x-auto pb-1 text-xs">
+      {/* Navigation Tabs (Smooth touch scrolling on mobile) */}
+      <div className="flex items-center gap-2 border-b border-white/[0.08] overflow-x-auto pb-2 text-xs flex-nowrap shrink-0">
         <button
           onClick={() => setActiveTab('matrix')}
-          className={`px-4 py-2.5 rounded-t-lg font-semibold transition flex items-center gap-2 ${
+          className={`px-3.5 py-2.5 rounded-xl font-semibold transition flex items-center gap-2 whitespace-nowrap min-h-[42px] touch-manipulation shrink-0 ${
             activeTab === 'matrix'
-              ? 'bg-white/[0.08] text-white border-b-2 border-[#C8A961]'
-              : 'text-tactical-400 hover:text-tactical-200'
+              ? 'bg-[#C8A961]/15 text-[#C8A961] border border-[#C8A961]/35 font-bold shadow-sm'
+              : 'text-tactical-400 hover:text-tactical-200 hover:bg-white/[0.03]'
           }`}
         >
-          <QrCode size={15} className={activeTab === 'matrix' ? 'text-[#C8A961]' : ''} />
-          Matriz de QRs Estáticos ({fixedAmountQRs.length})
+          <QrCode size={16} className={activeTab === 'matrix' ? 'text-[#C8A961]' : ''} />
+          Matriz de QRs ({fixedAmountQRs.length})
         </button>
 
         <button
           onClick={() => setActiveTab('verifications')}
-          className={`px-4 py-2.5 rounded-t-lg font-semibold transition flex items-center gap-2 ${
+          className={`px-3.5 py-2.5 rounded-xl font-semibold transition flex items-center gap-2 whitespace-nowrap min-h-[42px] touch-manipulation shrink-0 ${
             activeTab === 'verifications'
-              ? 'bg-white/[0.08] text-white border-b-2 border-[#C8A961]'
-              : 'text-tactical-400 hover:text-tactical-200'
+              ? 'bg-[#C8A961]/15 text-[#C8A961] border border-[#C8A961]/35 font-bold shadow-sm'
+              : 'text-tactical-400 hover:text-tactical-200 hover:bg-white/[0.03]'
           }`}
         >
-          <CreditCard size={15} className={activeTab === 'verifications' ? 'text-[#C8A961]' : ''} />
-          Verificación de Comprobantes ({payments.length})
+          <CreditCard size={16} className={activeTab === 'verifications' ? 'text-[#C8A961]' : ''} />
+          Verificaciones ({payments.length})
           {pendingCount > 0 && (
-            <span className="w-5 h-5 rounded-full bg-amber-accent/20 text-amber-accent text-[10px] font-bold flex items-center justify-center border border-amber-accent/30">
+            <span className="w-5 h-5 rounded-full bg-amber-accent/25 text-amber-accent text-[10px] font-bold flex items-center justify-center border border-amber-accent/40">
               {pendingCount}
             </span>
           )}
@@ -497,38 +497,38 @@ export default function AdminPaymentsPage() {
 
         <button
           onClick={() => setActiveTab('simulator')}
-          className={`px-4 py-2.5 rounded-t-lg font-semibold transition flex items-center gap-2 ${
+          className={`px-3.5 py-2.5 rounded-xl font-semibold transition flex items-center gap-2 whitespace-nowrap min-h-[42px] touch-manipulation shrink-0 ${
             activeTab === 'simulator'
-              ? 'bg-white/[0.08] text-white border-b-2 border-[#C8A961]'
-              : 'text-tactical-400 hover:text-tactical-200'
+              ? 'bg-[#C8A961]/15 text-[#C8A961] border border-[#C8A961]/35 font-bold shadow-sm'
+              : 'text-tactical-400 hover:text-tactical-200 hover:bg-white/[0.03]'
           }`}
         >
-          <Sparkles size={15} className={activeTab === 'simulator' ? 'text-[#C8A961]' : ''} />
-          Simulador de Despacho QR
+          <Sparkles size={16} className={activeTab === 'simulator' ? 'text-[#C8A961]' : ''} />
+          Simulador QR
         </button>
 
         <button
           onClick={() => setActiveTab('mobile')}
-          className={`px-4 py-2.5 rounded-t-lg font-semibold transition flex items-center gap-2 ${
+          className={`px-3.5 py-2.5 rounded-xl font-semibold transition flex items-center gap-2 whitespace-nowrap min-h-[42px] touch-manipulation shrink-0 ${
             activeTab === 'mobile'
-              ? 'bg-white/[0.08] text-white border-b-2 border-[#C8A961]'
-              : 'text-tactical-400 hover:text-tactical-200'
+              ? 'bg-[#C8A961]/15 text-[#C8A961] border border-[#C8A961]/35 font-bold shadow-sm'
+              : 'text-tactical-400 hover:text-tactical-200 hover:bg-white/[0.03]'
           }`}
         >
-          <Smartphone size={15} className={activeTab === 'mobile' ? 'text-[#C8A961]' : ''} />
-          Integración Celular (NotofocacionS)
+          <Smartphone size={16} className={activeTab === 'mobile' ? 'text-[#C8A961]' : ''} />
+          NotofocacionS Móvil
         </button>
 
         <button
           onClick={() => setActiveTab('gateway')}
-          className={`px-4 py-2.5 rounded-t-lg font-semibold transition flex items-center gap-2 ${
+          className={`px-3.5 py-2.5 rounded-xl font-semibold transition flex items-center gap-2 whitespace-nowrap min-h-[42px] touch-manipulation shrink-0 ${
             activeTab === 'gateway'
-              ? 'bg-white/[0.08] text-white border-b-2 border-[#C8A961]'
-              : 'text-tactical-400 hover:text-tactical-200'
+              ? 'bg-[#C8A961]/15 text-[#C8A961] border border-[#C8A961]/35 font-bold shadow-sm'
+              : 'text-tactical-400 hover:text-tactical-200 hover:bg-white/[0.03]'
           }`}
         >
-          <Sliders size={15} className={activeTab === 'gateway' ? 'text-[#C8A961]' : ''} />
-          Pasarela Activa & Yape ({paymentGatewaySettings.provider_name.split(' ')[0]})
+          <Sliders size={16} className={activeTab === 'gateway' ? 'text-[#C8A961]' : ''} />
+          Pasarela ({paymentGatewaySettings.provider_name.split(' ')[0]})
         </button>
       </div>
 
@@ -814,8 +814,76 @@ export default function AdminPaymentsPage() {
             </div>
           </div>
 
-          {/* Payments Table */}
-          <div className="glass-card-static overflow-hidden">
+          {/* Mobile Responsive Cards (Phone View) */}
+          <div className="md:hidden space-y-3">
+            {payments.map(payment => {
+              const order = demoOrders.find(o => o.id === payment.order_id);
+              const config = statusConfig[payment.status];
+              const receiptImgUrl =
+                'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=60';
+
+              return (
+                <div key={payment.id} className="glass-card-static p-4 border border-white/[0.08] space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-bold text-white">
+                        #{payment.order_id.toUpperCase()}
+                      </span>
+                      <span className={`badge ${config.badge} text-[10px]`}>{config.label}</span>
+                    </div>
+                    <span className="text-base font-black font-mono text-[#C8A961]">
+                      Bs. {order?.total.toFixed(2) || '—'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-tactical-400 font-mono pt-1 border-t border-white/[0.04]">
+                    <span>
+                      Tiempo: {payment.status === 'verified' ? getTimeBetween(payment.created_at, payment.verified_at) : 'En revisión'}
+                    </span>
+                    <span className={payment.notification_sent_at ? 'text-emerald-400 font-bold' : 'text-tactical-500'}>
+                      Push: {payment.notification_sent_at ? 'Enviada' : 'No'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
+                    <button
+                      onClick={() =>
+                        setSelectedReceipt({
+                          id: payment.id,
+                          url: receiptImgUrl,
+                          orderId: payment.order_id,
+                        })
+                      }
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-xs font-semibold text-tactical-200 border border-white/[0.08] active:scale-95 touch-manipulation"
+                    >
+                      <Eye size={14} className="text-[#C8A961]" /> Ver Comprobante
+                    </button>
+
+                    {payment.status === 'pending' && (
+                      <button
+                        className="flex-1 btn-tactical text-xs py-2.5 px-4 font-bold flex items-center justify-center gap-1.5 shadow-md shadow-[#C8A961]/20 active:scale-95 touch-manipulation"
+                        onClick={() => handleVerify(payment.id, payment.order_id)}
+                      >
+                        <CheckCircle2 size={14} /> Aprobar
+                      </button>
+                    )}
+
+                    <button
+                      className="p-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-tactical-400 hover:text-white border border-white/[0.06] active:scale-95 touch-manipulation flex items-center justify-center min-w-[38px] min-h-[38px]"
+                      onClick={() => handleResendPush(payment.order_id)}
+                      title="Reenviar push al equipo"
+                      aria-label="Reenviar push"
+                    >
+                      <Send size={15} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Payments Table */}
+          <div className="hidden md:block glass-card-static overflow-hidden">
             <div className="overflow-x-auto">
               <table className="table-tactical">
                 <thead>
@@ -1441,15 +1509,16 @@ export default function AdminPaymentsPage() {
                           )}
 
                           {/* Action Bar: Auto Match vs Manual Match Dropdown */}
-                          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/[0.06]">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2.5 border-t border-white/[0.06]">
                             {matchResult ? (
-                              <div className="flex items-center gap-2 flex-wrap">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                 <span className="text-xs text-[#C8A961] font-semibold flex items-center gap-1">
-                                  <CheckCircle2 size={14} className="text-emerald-400" /> Coincide con Orden #{matchResult.orderId.toUpperCase()} ({matchResult.customerName})
+                                  <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                                  <span>Coincide con Orden #{matchResult.orderId.toUpperCase()} ({matchResult.customerName})</span>
                                 </span>
                                 <button
                                   onClick={() => handleAcreditarOrden(matchResult.orderId, notif)}
-                                  className="btn-tactical text-xs py-1.5 px-3.5 flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold shadow-lg shadow-emerald-500/20"
+                                  className="btn-tactical text-xs py-2.5 px-4 flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold shadow-lg shadow-emerald-500/20 active:scale-95 touch-manipulation w-full sm:w-auto"
                                 >
                                   <Check size={14} /> Cruzar y Acreditar #{matchResult.orderId.toUpperCase()}
                                 </button>
@@ -1462,9 +1531,9 @@ export default function AdminPaymentsPage() {
 
                             {/* Manual Link Dropdown in case relative/family paid */}
                             {pendingOrdersList.length > 0 && (
-                              <div className="flex items-center gap-2 ml-auto">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:ml-auto w-full sm:w-auto">
                                 <span className="text-[10px] text-neutral-400 font-mono">
-                                  ¿Pagó con otra cuenta?:
+                                  ¿Pagó familiar u otra cuenta?:
                                 </span>
                                 <select
                                   defaultValue=""
@@ -1474,7 +1543,7 @@ export default function AdminPaymentsPage() {
                                       e.target.value = '';
                                     }
                                   }}
-                                  className="input-tactical py-1 px-2 text-[11px] w-auto max-w-[220px]"
+                                  className="input-tactical py-1.5 px-2.5 text-xs w-full sm:w-auto sm:max-w-[240px] font-mono"
                                 >
                                   <option value="">Vincular a orden manual...</option>
                                   {pendingOrdersList.map(o => (
@@ -1878,25 +1947,28 @@ export default function AdminPaymentsPage() {
         </div>
       )}
 
-      {/* MODAL CREAR / EDITAR QR ESTÁTICO */}
+      {/* MODAL CREAR / EDITAR QR ESTÁTICO (Mobile Responsive with Sticky Actions) */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="glass-card-static w-full max-w-lg p-6 relative border border-white/[0.1] shadow-2xl my-8">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="glass-card-static w-full max-w-lg p-4 sm:p-6 relative border border-white/[0.1] shadow-2xl my-auto max-h-[92vh] flex flex-col">
             <button
               onClick={() => setIsCreateModalOpen(false)}
-              className="absolute top-4 right-4 p-2 text-tactical-400 hover:text-white rounded-lg hover:bg-white/[0.05]"
+              className="absolute top-3.5 right-3.5 p-2 text-tactical-400 hover:text-white rounded-xl hover:bg-white/[0.08] active:scale-95 touch-manipulation z-20"
+              aria-label="Cerrar modal"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
 
-            <h3 className="text-base font-bold text-white mb-1">
-              {editingQR ? 'Editar Código QR Estático' : 'Agregar Nuevo Código QR a la Matriz'}
-            </h3>
-            <p className="text-xs text-tactical-400 mb-5">
-              Las imágenes se cargan en ImgBB y en Supabase solo se conserva el enlace directo.
-            </p>
+            <div className="pr-8 mb-3 shrink-0">
+              <h3 className="text-base font-bold text-white mb-0.5">
+                {editingQR ? 'Editar Código QR Estático' : 'Agregar Nuevo Código QR a la Matriz'}
+              </h3>
+              <p className="text-xs text-tactical-400">
+                Las imágenes se cargan en ImgBB y en Supabase solo se conserva el enlace directo.
+              </p>
+            </div>
 
-            <form onSubmit={handleSaveQR} className="space-y-4">
+            <form onSubmit={handleSaveQR} className="overflow-y-auto pr-1 flex-1 space-y-4">
               {/* Type Selection */}
               <div>
                 <label className="block text-xs font-mono uppercase text-tactical-400 mb-2">
@@ -1908,7 +1980,7 @@ export default function AdminPaymentsPage() {
                       setIsFixedAmount(true);
                       setFormIsDefault(false);
                     }}
-                    className={`p-3 rounded-xl border cursor-pointer transition ${
+                    className={`p-3 rounded-xl border cursor-pointer transition touch-manipulation ${
                       isFixedAmount && !formIsDefault
                         ? 'bg-[#C8A961]/10 border-[#C8A961]'
                         : 'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12]'
@@ -1928,7 +2000,7 @@ export default function AdminPaymentsPage() {
                       setFormIsDefault(true);
                       setFormAmount('');
                     }}
-                    className={`p-3 rounded-xl border cursor-pointer transition ${
+                    className={`p-3 rounded-xl border cursor-pointer transition touch-manipulation ${
                       formIsDefault
                         ? 'bg-amber-500/10 border-amber-500'
                         : 'bg-white/[0.02] border-white/[0.06] hover:border-white/[0.12]'
@@ -2073,19 +2145,19 @@ export default function AdminPaymentsPage() {
                 />
               </div>
 
-              {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.08]">
+              {/* Sticky Submit Buttons (Always visible on mobile) */}
+              <div className="sticky bottom-0 bg-[#0e0e12]/95 backdrop-blur-md pt-3 pb-1 border-t border-white/[0.08] flex items-center justify-end gap-3 z-10 mt-4">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="btn-ghost text-xs"
+                  className="btn-ghost text-xs py-2.5 px-4 touch-manipulation"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="btn-tactical text-xs py-2.5 px-5 flex items-center gap-2"
+                  className="btn-tactical text-xs py-2.5 px-5 flex items-center gap-2 font-bold shadow-lg shadow-[#C8A961]/20 active:scale-95 touch-manipulation"
                 >
                   {isSubmitting ? (
                     <>
@@ -2103,41 +2175,44 @@ export default function AdminPaymentsPage() {
         </div>
       )}
 
-      {/* MODAL VER COMPROBANTE DE PAGO */}
+      {/* MODAL VER COMPROBANTE DE PAGO (Mobile Optimized) */}
       {selectedReceipt && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-card-static w-full max-w-md p-5 relative border border-white/[0.1] shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="glass-card-static w-full max-w-md p-4 sm:p-5 relative border border-white/[0.1] shadow-2xl my-auto max-h-[92vh] overflow-y-auto">
             <button
               onClick={() => setSelectedReceipt(null)}
-              className="absolute top-4 right-4 p-2 text-tactical-400 hover:text-white rounded-lg hover:bg-white/[0.05]"
+              className="absolute top-3.5 right-3.5 p-2 text-tactical-400 hover:text-white rounded-xl hover:bg-white/[0.08] active:scale-95 touch-manipulation z-20"
+              aria-label="Cerrar comprobante"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
 
-            <h3 className="text-base font-bold text-white mb-1">
-              Comprobante de Pago — Orden {selectedReceipt.orderId.toUpperCase()}
-            </h3>
-            <p className="text-xs text-tactical-400 mb-4">
-              Imagen de transferencia alojada en ImgBB
-            </p>
+            <div className="pr-8 mb-3">
+              <h3 className="text-base font-bold text-white mb-0.5">
+                Comprobante de Pago — Orden {selectedReceipt.orderId.toUpperCase()}
+              </h3>
+              <p className="text-xs text-tactical-400">
+                Imagen de transferencia alojada en ImgBB
+              </p>
+            </div>
 
-            <div className="relative aspect-video w-full rounded-xl overflow-hidden border border-white/[0.1] bg-tactical-950 mb-4">
+            <div className="relative aspect-video w-full rounded-xl overflow-hidden border border-white/[0.1] bg-tactical-950 mb-4 shadow-inner">
               <Image
                 src={selectedReceipt.url}
                 alt="Comprobante de transferencia"
                 fill
                 unoptimized
-                className="object-cover"
+                className="object-contain"
                 sizes="(max-width: 768px) 100vw, 400px"
               />
             </div>
 
-            <div className="flex items-center justify-between gap-3 pt-2 border-t border-white/[0.06]">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-3 border-t border-white/[0.08]">
               <a
                 href={selectedReceipt.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-ghost text-xs flex items-center gap-1.5"
+                className="btn-ghost text-xs py-2.5 px-4 flex items-center justify-center gap-1.5 touch-manipulation"
               >
                 <ExternalLink size={14} /> Abrir original
               </a>
@@ -2147,7 +2222,7 @@ export default function AdminPaymentsPage() {
                   handleVerify(selectedReceipt.id, selectedReceipt.orderId);
                   setSelectedReceipt(null);
                 }}
-                className="btn-tactical text-xs"
+                className="btn-tactical text-xs py-2.5 px-5 font-bold shadow-lg shadow-[#C8A961]/20 active:scale-95 touch-manipulation"
               >
                 Aprobar y Verificar
               </button>

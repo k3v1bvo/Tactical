@@ -139,25 +139,30 @@ export default function ProductDetailPage() {
             {/* Quantity & Add to Cart */}
             {!isOutOfStock && (
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
-                <div className="flex items-center border border-white/[0.1] rounded-xl overflow-hidden">
+                <div className="flex items-center border border-white/[0.12] bg-[#0c0c10] rounded-xl overflow-hidden self-start sm:self-auto shadow-inner">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="p-3 hover:bg-white/[0.05] transition-colors"
+                    className="w-11 h-11 flex items-center justify-center hover:bg-white/[0.08] active:bg-[#C8A961]/20 transition-colors touch-manipulation"
+                    aria-label="Disminuir cantidad"
                   >
-                    <Minus size={16} className="text-tactical-400" />
+                    <Minus size={16} className="text-tactical-300" />
                   </button>
-                  <span className="px-5 py-3 text-white font-semibold min-w-[3rem] text-center">{quantity}</span>
+                  <span className="px-4 text-white font-mono font-bold min-w-[3rem] text-center">{quantity}</span>
                   <button
                     onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                    className="p-3 hover:bg-white/[0.05] transition-colors"
+                    className="w-11 h-11 flex items-center justify-center hover:bg-white/[0.08] active:bg-[#C8A961]/20 transition-colors touch-manipulation"
+                    aria-label="Aumentar cantidad"
                   >
-                    <Plus size={16} className="text-tactical-400" />
+                    <Plus size={16} className="text-tactical-300" />
                   </button>
                 </div>
 
-                <button onClick={handleAddToCart} className="btn-tactical flex items-center justify-center gap-2 flex-1 py-3.5 text-base">
-                  <ShoppingCart size={20} />
-                  Agregar al carrito — Bs. {(product.price * quantity).toFixed(2)}
+                <button
+                  onClick={handleAddToCart}
+                  className="btn-tactical flex items-center justify-center gap-2 flex-1 py-3.5 px-6 text-sm sm:text-base font-bold shadow-lg shadow-[#C8A961]/20 active:scale-95 touch-manipulation"
+                >
+                  <ShoppingCart size={18} />
+                  <span>Agregar al arsenal — Bs. {(product.price * quantity).toFixed(2)}</span>
                 </button>
               </div>
             )}
@@ -176,6 +181,27 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Sticky Bottom Purchase Bar (Mobile only) */}
+      {!isOutOfStock && (
+        <div className="md:hidden fixed bottom-14 left-0 right-0 z-40 bg-[#070709]/95 backdrop-blur-2xl border-t border-[#C8A961]/25 p-3 shadow-[0_-8px_30px_rgba(0,0,0,0.85)]">
+          <div className="flex items-center justify-between gap-3 max-w-md mx-auto">
+            <div>
+              <span className="text-[10px] text-tactical-400 font-mono uppercase block">Total Arsenal</span>
+              <span className="text-base font-black font-mono text-[#C8A961]">
+                Bs. {(product.price * quantity).toFixed(2)}
+              </span>
+            </div>
+            <button
+              onClick={handleAddToCart}
+              className="btn-tactical py-3 px-5 text-xs font-bold flex items-center gap-2 shadow-lg shadow-[#C8A961]/25 active:scale-95 touch-manipulation"
+            >
+              <ShoppingCart size={16} />
+              <span>Añadir ({quantity})</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

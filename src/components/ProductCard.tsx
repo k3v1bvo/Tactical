@@ -61,11 +61,11 @@ export function ProductCard({ product, onView }: ProductCardProps) {
           </div>
         )}
 
-        {/* Quick add button */}
+        {/* Quick add button (always visible on mobile touchscreens, hover on desktop) */}
         <button
           onClick={handleAddToCart}
           disabled={isOutOfStock}
-          className="absolute bottom-3 right-3 z-10 w-10 h-10 rounded-xl bg-amber-accent/90 hover:bg-amber-accent flex items-center justify-center text-tactical-900 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg"
+          className="absolute bottom-3 right-3 z-10 w-11 h-11 rounded-xl bg-[#C8A961] hover:bg-[#DEC07A] text-black font-bold flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 translate-y-0 sm:translate-y-2 sm:group-hover:translate-y-0 transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-[#C8A961]/30 active:scale-95 touch-manipulation"
           aria-label="Agregar al carrito"
         >
           <ShoppingCart size={18} />

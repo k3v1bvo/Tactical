@@ -1313,6 +1313,35 @@ export default function CheckoutPage() {
           </div>
         </div>
       </main>
+
+      {/* Sticky Mobile Checkout CTA Bar (Visible only on mobile before placing order) */}
+      <div className="lg:hidden fixed bottom-14 left-0 right-0 z-40 bg-[#070709]/95 backdrop-blur-2xl border-t border-[#C8A961]/25 p-3.5 shadow-[0_-8px_30px_rgba(0,0,0,0.85)]">
+        <div className="flex items-center justify-between gap-3 max-w-md mx-auto">
+          <div>
+            <span className="text-[10px] text-neutral-400 font-mono uppercase block">Total a Abonar</span>
+            <span className="text-lg font-black font-mono text-[#C8A961]">
+              Bs. {(amountToPayNow > 0 ? amountToPayNow : grandTotal).toFixed(2)}
+            </span>
+          </div>
+          <button
+            type="submit"
+            form="checkout-form"
+            disabled={isSubmitting}
+            className="btn-tactical py-3 px-5 text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-[#C8A961]/25 active:scale-95 touch-manipulation disabled:opacity-50"
+          >
+            <ShieldCheck size={16} />
+            <span>
+              {isSubmitting
+                ? 'Procesando...'
+                : paymentMode === 'full_payment'
+                ? 'Confirmar + Regalo'
+                : paymentMode === 'partial_payment'
+                ? 'Pagar Anticipo'
+                : 'Confirmar Pedido'}
+            </span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
