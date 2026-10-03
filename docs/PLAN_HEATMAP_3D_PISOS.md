@@ -43,6 +43,50 @@ $$\text{Piso Estimado} = \operatorname{clamp}\left(1, \; 15, \; \left\lfloor \fr
 
 ---
 
+## 🌐 2.1. Viabilidad en Versión Web vs. APK Android Nativa
+
+¿Se puede obtener Altitud (Z), Latitud (Y) y Longitud (X) directamente desde la Web sin instalar nada? **SÍ, está soportado en los estándares web**, pero con diferencias operativas frente a una APK nativa:
+
+### A. Implementación en la Web (HTML5 Geolocation API)
+Los navegadores móviles modernos (Chrome en Android, Safari en iOS) soportan la lectura tridimensional si se activa la alta precisión:
+
+```javascript
+navigator.geolocation.getCurrentPosition(
+  (position) => {
+    const lat = position.coords.latitude;          // Eje Y (Latitud)
+    const lon = position.coords.longitude;         // Eje X (Longitud)
+    const alt = position.coords.altitude;          // Eje Z (Metros sobre el mar, o null)
+    const precisionZ = position.coords.altitudeAccuracy; // Margen de error vertical
+
+    console.log(`Posición 3D: Lat ${lat}, Lon ${lon}, Altura: ${alt}m (±${precisionZ}m)`);
+  },
+  (error) => console.error("Error GPS:", error),
+  { 
+    enableHighAccuracy: true, // ⚠️ CRUCIAL: Fuerza el encendido del sensor de altitud/GNSS
+    timeout: 15000,
+    maximumAge: 0
+  }
+);
+```
+
+### B. Matriz Comparativa: Web vs. APK Android Nativa
+
+| Característica | Versión Web (PWA / Chrome) | Versión APK (Android Nativo / Capacitor) |
+|---|---|---|
+| **Latitud & Longitud (X, Y)** | ✅ 100% Preciso (GPS + Wi-Fi) | ✅ 100% Preciso |
+| **Altitud (Eje Z)** | 🟡 Soporta `coords.altitude`, pero si el usuario está en el centro del edificio o sótano sin satélites puede retornar `null`. | ✅ Lectura directa del **Barómetro físico** (`Sensor.TYPE_PRESSURE`). Funciona en cualquier rincón. |
+| **Ejecución en Background** | ❌ El navegador suspende el GPS si se apaga la pantalla o cambia de app. | ✅ Corre en segundo plano (Background Service con el celular en el bolsillo). |
+| **Acceso a Sensores** | 🟡 Sujeto a permisos de Chrome y HTTPS. | ✅ Acceso nativo total a hardware sin restricciones de navegador. |
+
+### C. Estrategia Híbrida para la Web (100% Confiable)
+Para garantizar que la versión web funcione sin importar el modelo de celular:
+1. **Paso Automático:** La web solicita ubicación con `enableHighAccuracy: true`. Si `coords.altitude` viene con valor, calcula el piso directamente.
+2. **Paso de Respaldo Inteligente (Fallback):** Si `coords.altitude` es `null` (común bajo techos gruesos de cemento), la web valida que está en el Paseo Aranjuez por Lat/Lon y despliega un micro-modal de 1 toque:
+   > *"Bienvenido a Torre Aranjuez 🏢 ¿En qué piso te encuentras? [P1] [P2] [P3] ... [P15]"*
+3. Una vez confirmado, la posición se sincroniza en Supabase y el mapa de calor del Administrador se actualiza en vivo.
+
+---
+
 ## 🗃️ 3. Base de Datos en Supabase (`paseo_live_locations`)
 
 ```sql
