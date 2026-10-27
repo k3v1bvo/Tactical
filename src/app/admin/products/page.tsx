@@ -348,9 +348,21 @@ export default function AdminProductsPage() {
                       {product.name}
                     </div>
                     <div className="flex items-center justify-between mt-1">
-                      <span className="font-mono font-bold text-[#C8A961] text-sm">
-                        Bs. {product.price.toFixed(2)}
-                      </span>
+                      <div>
+                        <span className="font-mono font-bold text-[#C8A961] text-sm">
+                          Bs. {product.price.toFixed(2)}
+                        </span>
+                        {product.cost_price && product.cost_price > 0 ? (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] text-[#A1A1AA] font-mono">
+                              Costo: Bs. {product.cost_price.toFixed(2)}
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-[#30A46C] bg-[#30A46C]/10 px-1.5 py-0.2 rounded">
+                              +Bs. {(product.price - product.cost_price).toFixed(2)}
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
                       <div className="flex items-center gap-1.5">
                         <span className={`w-2 h-2 rounded-full ${isOut ? 'bg-[#E5484D]' : isLow ? 'bg-[#F5A623] animate-pulse' : 'bg-[#30A46C]'}`} />
                         <span className={`font-mono text-[11px] font-semibold ${isOut ? 'text-[#E5484D]' : isLow ? 'text-[#F5A623]' : 'text-neutral-300'}`}>

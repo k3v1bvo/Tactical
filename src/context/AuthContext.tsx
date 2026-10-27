@@ -16,6 +16,7 @@ interface AuthContextType {
   userAvatar: string | null;
   user: { id: string; name: string; email: string; phone?: string; avatar_url?: string | null };
   isAdmin: boolean;
+  isWarehouse: boolean;
   isVendor: boolean;
   isClient: boolean;
   isLoggedIn: boolean;
@@ -31,7 +32,8 @@ interface AuthContextType {
 
 const roleProfiles: Record<AppRole, { id: string; name: string; email: string; phone: string; avatar_url: string | null }> = {
   admin: { id: 'admin-01', name: 'Comandante Dueño', email: 'admin@tacticos.bo', phone: '+591 71234567', avatar_url: null },
-  vendor: { id: 'vendor-01', name: 'Carlos Chofer (Driver)', email: 'driver1@tacticos.bo', phone: '+591 76543210', avatar_url: null },
+  warehouse: { id: 'warehouse-01', name: 'Sofía Almacén (Encargada)', email: 'almacen@tacticos.bo', phone: '+591 72345678', avatar_url: null },
+  vendor: { id: 'vendor-01', name: 'Carlos Chofer (Vendedor/Reparto)', email: 'driver1@tacticos.bo', phone: '+591 76543210', avatar_url: null },
   client: { id: 'client-01', name: 'Juan Operativo', email: 'cliente@tacticos.bo', phone: '+591 75512345', avatar_url: null },
 };
 
@@ -264,6 +266,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         userAvatar: currentProfile.avatar_url,
         user: currentProfile,
         isAdmin: role === 'admin',
+        isWarehouse: role === 'warehouse',
         isVendor: role === 'vendor',
         isClient: role === 'client',
         isLoggedIn: !!authUser,

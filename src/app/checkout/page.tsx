@@ -29,11 +29,14 @@ import {
   CalendarCheck,
   Smartphone,
   RefreshCw,
+  Crosshair,
+  Compass,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import { ImageUploader } from '@/components/ImageUploader';
+import { DeliveryMapPicker, type DeliveryLocation } from '@/components/DeliveryMapPicker';
 import type { DeliveryType, PaymentMode } from '@/lib/types';
 
 const BOLIVIA_DEPARTMENTS = [
@@ -69,6 +72,28 @@ export default function CheckoutPage() {
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
+
+  // Map & GPS Pin States for Delivery in Cochabamba
+  const [deliveryLat, setDeliveryLat] = useState<number>(-17.3935);
+  const [deliveryLng, setDeliveryLng] = useState<number>(-66.1570);
+  const [deliveryMapUrl, setDeliveryMapUrl] = useState<string>('https://www.google.com/maps?q=-17.3935,-66.1570');
+  const [deliveryPinAddress, setDeliveryPinAddress] = useState<string>('');
+  const [showMapModal, setShowMapModal] = useState<boolean>(false);
+
+  const handleMapConfirm = (loc: DeliveryLocation) => {
+    setDeliveryLat(loc.lat);
+    setDeliveryLng(loc.lng);
+    setDeliveryMapUrl(loc.googleMapsUrl);
+    setDeliveryPinAddress(loc.address);
+    if (!customerAddress || customerAddress.trim().length === 0) {
+      setCustomerAddress(loc.address);
+    }
+    if (loc.reference && (!deliveryNotes || deliveryNotes.trim().length === 0)) {
+      setDeliveryNotes(loc.reference);
+    }
+    setShowMapModal(false);
+    toast.success('📍 ¡Punto de entrega fijado con éxito!');
+  };
 
   // Auto pre-fill customer information if user is logged in
   useEffect(() => {
@@ -212,6 +237,10 @@ export default function CheckoutPage() {
         customer_phone: customerPhone.trim().startsWith('+') ? customerPhone.trim() : `+591 ${customerPhone.trim()}`,
         customer_email: customerEmail.trim() || undefined,
         customer_address: deliveryType === 'pickup' ? storeSettings.pickupAddress : customerAddress.trim(),
+        delivery_lat: deliveryType === 'delivery' ? (deliveryLat ?? undefined) : undefined,
+        delivery_lng: deliveryType === 'delivery' ? (deliveryLng ?? undefined) : undefined,
+        delivery_map_url: deliveryType === 'delivery' ? deliveryMapUrl : undefined,
+        delivery_pin_address: deliveryType === 'delivery' ? (deliveryPinAddress || customerAddress.trim()) : undefined,
         delivery_notes: deliveryNotes.trim() || undefined,
         delivery_type: deliveryType,
         shipping_zone_id: deliveryType === 'delivery' ? selectedZoneId : undefined,
@@ -1041,6 +1070,71 @@ export default function CheckoutPage() {
                       </div>
                     </div>
 
+                    {/* Tactical GPS Map Location Selector Card */}
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-[#121218] to-[#0A0A0E] border border-[#C8A961]/35 shadow-lg space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-9 h-9 rounded-xl bg-[#C8A961]/20 border border-[#C8A961]/40 flex items-center justify-center text-[#C8A961] shrink-0">
+                            <Crosshair size={18} />
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                              <span>PUNTO DE ENTREGA CON PIN GPS</span>
+                              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">
+                                RECOMENDADO
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-neutral-400 mt-0.5">
+                              Coloca el PIN en el mapa para que el vendedor / repartidor llegue exacto a tu puerta.
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowMapModal(true)}
+                          className="flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-[#C8A961] hover:bg-[#b59855] text-black font-extrabold text-xs transition shadow-md active:scale-95 shrink-0"
+                        >
+                          <MapPin size={14} />
+                          {deliveryLat ? '📍 MODIFICAR PIN EN EL MAPA' : '📍 ABRIR MAPA & PONER PIN'}
+                        </button>
+                      </div>
+
+                      {/* GPS Readout & Links */}
+                      {deliveryLat && deliveryLng && (
+                        <div className="p-2.5 rounded-lg bg-black/50 border border-white/[0.08] flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                          <div className="flex items-center gap-2 text-[#C8A961]">
+                            <Compass size={14} />
+                            <span>GPS: {deliveryLat.toFixed(5)}, {deliveryLng.toFixed(5)}</span>
+                            {deliveryPinAddress && (
+                              <span className="text-neutral-400 text-[11px] truncate max-w-xs">
+                                ({deliveryPinAddress})
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={deliveryMapUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] text-neutral-300 hover:text-white underline flex items-center gap-1"
+                            >
+                              Ver en Google Maps
+                            </a>
+                            <span className="text-neutral-600">•</span>
+                            <a
+                              href={`https://waze.com/ul?ll=${deliveryLat},${deliveryLng}&navigate=yes`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] text-cyan-400 hover:text-cyan-300 underline flex items-center gap-1"
+                            >
+                              Waze
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <div>
                       <label className="block text-xs font-mono uppercase text-neutral-400 mb-1.5">
                         Dirección Exacta de Entrega *
@@ -1057,6 +1151,22 @@ export default function CheckoutPage() {
                         />
                       </div>
                     </div>
+
+                    {/* Delivery Map Modal Overlay */}
+                    {showMapModal && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in">
+                        <div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto">
+                          <DeliveryMapPicker
+                            initialLat={deliveryLat}
+                            initialLng={deliveryLng}
+                            initialAddress={customerAddress}
+                            initialReference={deliveryNotes}
+                            onConfirm={handleMapConfirm}
+                            onCancel={() => setShowMapModal(false)}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

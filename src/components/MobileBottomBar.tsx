@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Compass, ShoppingCart, Package, User, Shield, Sparkles } from 'lucide-react';
+import { Home, Compass, ShoppingCart, Package, User, Shield, Boxes, Truck } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -12,9 +12,8 @@ export function MobileBottomBar() {
   const { totalItems } = useCart();
   const { role, openAuthModal, isLoggedIn, userName } = useAuth();
 
-  // If inside admin dashboard routes, do not render client bottom bar
-  // (Admin has its own dedicated mobile header and drawer)
-  const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/vendor');
+  // If inside administrative / dashboard routes, do not render client bottom bar
+  const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/vendor') || pathname.startsWith('/almacen');
 
   if (isAdminRoute) {
     return null;
@@ -102,7 +101,7 @@ export function MobileBottomBar() {
             );
           })}
 
-          {/* Profile / Admin action */}
+          {/* Role-Specific Action Button */}
           {role === 'admin' ? (
             <Link
               href="/admin/overview"
@@ -112,6 +111,28 @@ export function MobileBottomBar() {
               <Shield size={20} className="text-[#C8A961]" />
               <span className="text-[10px] tracking-tight mt-1 font-mono font-bold uppercase text-[#C8A961]">
                 Admin
+              </span>
+            </Link>
+          ) : role === 'warehouse' ? (
+            <Link
+              href="/almacen"
+              className="relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 min-w-[56px] min-h-[46px] text-[#F5A623] bg-[#F5A623]/10 border border-[#F5A623]/30 active:scale-95 touch-manipulation"
+              title="Panel de Almacén"
+            >
+              <Boxes size={20} className="text-[#F5A623]" />
+              <span className="text-[10px] tracking-tight mt-1 font-mono font-bold uppercase text-[#F5A623]">
+                Almacén
+              </span>
+            </Link>
+          ) : role === 'vendor' ? (
+            <Link
+              href="/vendor/orders"
+              className="relative flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all duration-200 min-w-[56px] min-h-[46px] text-[#3b82f6] bg-[#3b82f6]/10 border border-[#3b82f6]/30 active:scale-95 touch-manipulation"
+              title="Ruta de Entregas & GPS"
+            >
+              <Truck size={20} className="text-[#3b82f6]" />
+              <span className="text-[10px] tracking-tight mt-1 font-mono font-bold uppercase text-[#3b82f6]">
+                Ruta
               </span>
             </Link>
           ) : (

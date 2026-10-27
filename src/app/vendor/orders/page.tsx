@@ -24,6 +24,8 @@ import {
   Upload,
   Building,
   X,
+  Compass,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ImageUploader } from '@/components/ImageUploader';
@@ -198,9 +200,27 @@ export default function DriverOrdersPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-                  <div className="text-left sm:text-right">
-                    <span className="text-[10px] text-neutral-500 uppercase font-mono block">TU COMISIÓN</span>
-                    <div className="text-lg font-mono font-black text-[#C8A961]">+Bs. {commission.toFixed(2)}</div>
+                  <div className="flex items-center gap-3 text-right">
+                    <div>
+                      <span className="text-[10px] text-neutral-500 uppercase font-mono block">COSTO ALMACÉN</span>
+                      <div className="text-xs font-mono font-bold text-amber-400">
+                        Bs. {(order.cost_subtotal || (order.total * 0.65)).toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="h-6 w-px bg-white/10" />
+                    <div>
+                      <span className="text-[10px] text-neutral-500 uppercase font-mono block">VENTA TOTAL</span>
+                      <div className="text-xs font-mono font-bold text-white">
+                        Bs. {order.total.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="h-6 w-px bg-white/10" />
+                    <div>
+                      <span className="text-[10px] text-[#C8A961] uppercase font-mono font-bold block">TU GANANCIA</span>
+                      <div className="text-base font-mono font-black text-emerald-400">
+                        +Bs. {(order.vendor_margin || commission).toFixed(2)}
+                      </div>
+                    </div>
                   </div>
                   {activeTab === 'available' && (
                     <button onClick={() => driverAcceptOrder(order.id)} className="btn-tactical text-xs px-4 py-2.5 flex items-center justify-center gap-1.5 shadow-lg shadow-[#C8A961]/20 flex-1 sm:flex-initial">
@@ -210,17 +230,46 @@ export default function DriverOrdersPage() {
                 </div>
               </div>
 
-              {/* Destination */}
+              {/* Destination & GPS Location Card */}
               <div className="py-3.5 space-y-2 text-xs">
                 <div className="flex items-start gap-2 text-neutral-300">
                   <MapPin size={15} className="text-[#C8A961] flex-shrink-0 mt-0.5" />
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <span className="text-white font-semibold">{order.customer_name || 'Cliente'}</span>
                     <div className="text-neutral-400">{order.customer_address || 'Sin dirección registrada'}</div>
                   </div>
                 </div>
+
+                {/* GPS Pin Badge and Navigation Buttons */}
+                {order.delivery_lat && order.delivery_lng ? (
+                  <div className="p-2.5 rounded-xl bg-black/40 border border-[#C8A961]/25 flex flex-wrap items-center justify-between gap-2 ml-0 sm:ml-6">
+                    <div className="flex items-center gap-2 text-[#C8A961] text-[11px] font-mono">
+                      <Compass size={14} />
+                      <span>PIN GPS: {order.delivery_lat.toFixed(5)}, {order.delivery_lng.toFixed(5)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={order.delivery_map_url || `https://www.google.com/maps?q=${order.delivery_lat},${order.delivery_lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-mono text-white transition"
+                      >
+                        <ExternalLink size={11} /> Google Maps
+                      </a>
+                      <a
+                        href={`https://waze.com/ul?ll=${order.delivery_lat},${order.delivery_lng}&navigate=yes`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-[10px] font-mono text-cyan-400 transition"
+                      >
+                        <Truck size={11} /> Abrir en Waze
+                      </a>
+                    </div>
+                  </div>
+                ) : null}
+
                 {order.delivery_notes && (
-                  <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[11px] text-neutral-400 ml-6">
+                  <div className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[11px] text-neutral-400 ml-0 sm:ml-6">
                     <strong className="text-neutral-300">Indicaciones: </strong>{order.delivery_notes}
                   </div>
                 )}
@@ -250,9 +299,9 @@ export default function DriverOrdersPage() {
                     ) : (<span className="text-[11px] text-neutral-500 italic">Sin teléfono registrado</span>)}
                   </div>
                   <div className="flex items-center gap-2 w-full sm:w-auto">
-                    {order.status === 'assigned' && (<button onClick={() => driverPickupOrder(order.id)} className="btn-tactical text-xs py-2.5 px-4 flex items-center justify-center gap-1.5 w-full sm:w-auto"><Package size={14} /> RECOGIDO EN TIENDA</button>)}
-                    {order.status === 'picked_up' && (<button onClick={() => driverInTransit(order.id)} className="btn-tactical text-xs py-2.5 px-4 flex items-center justify-center gap-1.5 w-full sm:w-auto"><Truck size={14} /> INICIAR RUTA</button>)}
-                    {order.status === 'in_transit' && (<button onClick={() => driverDeliverOrder(order.id)} className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-lg shadow-emerald-600/20 w-full sm:w-auto"><CheckCircle2 size={14} /> CONFIRMAR ENTREGA</button>)}
+                    {order.status === 'assigned' && (<button onClick={() => driverPickupOrder(order.id)} className="btn-tactical text-xs py-2.5 px-4 flex items-center justify-center gap-1.5 w-full sm:w-auto"><Package size={14} /> RECOGER DE ALMACÉN</button>)}
+                    {order.status === 'picked_up' && (<button onClick={() => driverInTransit(order.id)} className="btn-tactical text-xs py-2.5 px-4 flex items-center justify-center gap-1.5 w-full sm:w-auto"><Truck size={14} /> INICIAR RUTA CON GPS</button>)}
+                    {order.status === 'in_transit' && (<button onClick={() => driverDeliverOrder(order.id)} className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-lg shadow-emerald-600/20 w-full sm:w-auto"><CheckCircle2 size={14} /> CONFIRMAR ENTREGA & COBRO</button>)}
                   </div>
                 </div>
               )}

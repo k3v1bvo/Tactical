@@ -549,6 +549,36 @@ export default function OrderTrackingPage() {
                 <span className="text-neutral-500 block">Dirección / Punto:</span>
                 <span className="text-neutral-300">{order.customer_address || order.pickup_location}</span>
               </div>
+
+              {/* Exact GPS Map PIN if saved */}
+              {order.delivery_lat && order.delivery_lng && (
+                <div className="p-3 rounded-xl bg-[#0D0D10] border border-[#C8A961]/35 space-y-2 mt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-[#C8A961] flex items-center gap-1 font-bold">
+                      <MapPin size={12} /> PIN DE ENTREGA GPS
+                    </span>
+                    <span className="text-[9px] font-mono text-neutral-500">
+                      {order.delivery_lat.toFixed(4)}, {order.delivery_lng.toFixed(4)}
+                    </span>
+                  </div>
+                  {order.delivery_pin_address && (
+                    <p className="text-[11px] text-neutral-300 leading-tight">
+                      📍 {order.delivery_pin_address}
+                    </p>
+                  )}
+                  {order.delivery_map_url && (
+                    <a
+                      href={order.delivery_map_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-[#C8A961] hover:underline"
+                    >
+                      <Navigation size={11} /> Ver Ubicación en Google Maps →
+                    </a>
+                  )}
+                </div>
+              )}
+
               {order.delivery_notes && (
                 <div className="p-2.5 rounded bg-white/[0.03] text-[11px] text-neutral-400">
                   <strong className="text-neutral-300">Notas: </strong>{order.delivery_notes}

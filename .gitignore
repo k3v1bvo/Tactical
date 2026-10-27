@@ -40,3 +40,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 PRD.md
+
+# scratch and local test scripts
+check_*.cjs
+create_*.cjs
+test_*.cjs
+seed_*.cjs
+*.py
+*.pdf
+AUDITORIA_*
+

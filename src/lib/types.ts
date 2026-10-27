@@ -2,7 +2,7 @@
 // TypeScript Types for the Tactical Store
 // =============================================
 
-export type AppRole = 'admin' | 'vendor' | 'client';
+export type AppRole = 'admin' | 'warehouse' | 'vendor' | 'client';
 export type OrderStatus =
   | 'pending'
   | 'paid'
@@ -154,6 +154,15 @@ export interface Order {
   customer_phone?: string; // WhatsApp
   customer_email?: string;
   customer_address?: string;
+  delivery_lat?: number | null;
+  delivery_lng?: number | null;
+  delivery_map_url?: string | null;
+  delivery_pin_address?: string | null;
+  warehouse_status?: 'pending' | 'preparing' | 'ready' | 'picked_up';
+  warehouse_packer?: string | null;
+  warehouse_packed_at?: string | null;
+  cost_subtotal?: number;
+  vendor_margin?: number;
   delivery_notes?: string | null;
   customer_rating?: number | null;
   customer_review?: string | null;
@@ -248,14 +257,20 @@ export interface SystemAlert {
   resolved_at: string | null;
 }
 
+export type NotificationTargetRole = AppRole | 'all';
+
 export interface Notification {
   id: string;
-  user_id: string;
+  user_id?: string;
+  target_role?: NotificationTargetRole;
   title: string;
   body: string | null;
-  type: string | null;
+  message?: string | null;
+  type?: 'order' | 'warehouse' | 'delivery' | 'payment' | 'stock' | 'system' | string | null;
   read: boolean;
-  link: string | null;
+  link?: string | null;
+  order_id?: string;
+  metadata?: Record<string, any>;
   created_at: string;
 }
 

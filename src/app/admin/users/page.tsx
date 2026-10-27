@@ -8,18 +8,20 @@ import type { AppRole } from '@/lib/types';
 
 const demoUsers = [
   { ...demoAdmin, role: 'admin' as AppRole, status: 'active', lastLogin: '2026-09-20T12:00:00Z', ordersCount: 0 },
+  { id: 'warehouse-01', email: 'almacen@tacticos.bo', full_name: 'Sofía Almacén (Encargada)', phone: '+591 72345678', avatar_url: null, created_at: '2026-06-01T00:00:00Z', updated_at: '2026-06-01T00:00:00Z', role: 'warehouse' as AppRole, status: 'active', lastLogin: '2026-09-20T11:45:00Z', ordersCount: 42 },
   { ...demoVendor, role: 'vendor' as AppRole, status: 'active', lastLogin: '2026-09-20T10:30:00Z', ordersCount: 0 },
   { ...demoClient, role: 'client' as AppRole, status: 'active', lastLogin: '2026-09-19T18:00:00Z', ordersCount: 10 },
   { id: 'client-02', email: 'maria@ejemplo.com', full_name: 'María Guerrera', phone: '+591 71234567', avatar_url: null, created_at: '2026-07-15T00:00:00Z', updated_at: '2026-07-15T00:00:00Z', role: 'client' as AppRole, status: 'active', lastLogin: '2026-09-18T09:00:00Z', ordersCount: 5 },
   { id: 'client-03', email: 'pedro@ejemplo.com', full_name: 'Pedro Ranger', phone: '+591 79876543', avatar_url: null, created_at: '2026-08-01T00:00:00Z', updated_at: '2026-08-01T00:00:00Z', role: 'client' as AppRole, status: 'suspended', lastLogin: '2026-08-20T14:00:00Z', ordersCount: 2 },
 ];
 
-const roleColors: Record<AppRole, string> = { admin: '#ef4444', vendor: '#3b82f6', client: '#10b981' };
-const roleLabels: Record<AppRole, string> = { admin: 'Admin', vendor: 'Vendor', client: 'Cliente' };
+const roleColors: Record<AppRole, string> = { admin: '#ef4444', warehouse: '#F5A623', vendor: '#3b82f6', client: '#10b981' };
+const roleLabels: Record<AppRole, string> = { admin: 'Admin', warehouse: 'Almacén', vendor: 'Vendedor', client: 'Cliente' };
 
 const allPermissions = ['products.create', 'products.read', 'products.update', 'products.delete', 'orders.create', 'orders.read', 'orders.update', 'payments.verify', 'payments.read', 'categories.read', 'categories.create', 'reports.view', 'reports.export', 'audit.view', 'settings.edit', 'roles.manage', 'users.read', 'users.update'];
 const rolePermissions: Record<AppRole, string[]> = {
   admin: allPermissions,
+  warehouse: ['orders.read', 'orders.update', 'products.read', 'inventory.manage', 'reports.view'],
   vendor: ['products.create', 'products.read', 'products.update', 'products.delete', 'orders.read', 'payments.verify', 'payments.read', 'categories.read', 'reports.view'],
   client: ['products.read', 'orders.create', 'orders.read', 'payments.read', 'categories.read'],
 };

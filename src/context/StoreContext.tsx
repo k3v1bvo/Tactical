@@ -15,6 +15,8 @@ import type {
   CashSettlementMethod,
   FixedAmountQR,
   PaymentGatewaySettings,
+  Notification,
+  AppRole,
 } from '@/lib/types';
 import {
   demoCategories,
@@ -27,6 +29,7 @@ import {
   defaultStoreSettings,
   defaultPaymentGatewaySettings,
   demoFixedAmountQRs,
+  demoNotifications,
 } from '@/lib/demo-data';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -47,6 +50,10 @@ export interface CreateOrderInput {
   customer_phone: string; // WhatsApp
   customer_email?: string;
   customer_address?: string;
+  delivery_lat?: number;
+  delivery_lng?: number;
+  delivery_map_url?: string;
+  delivery_pin_address?: string;
   delivery_notes?: string;
   delivery_type: DeliveryType; // 'pickup' | 'delivery' | 'national_shipping'
   shipping_zone_id?: string;
@@ -67,6 +74,7 @@ interface StoreContextType {
   categories: Category[];
   products: Product[];
   alerts: SystemAlert[];
+  notifications: Notification[];
   orders: Order[];
   shippingZones: ShippingZone[];
   driverEarnings: DriverEarning[];
@@ -158,6 +166,17 @@ interface StoreContextType {
   // Alerts & Maintenance
   resolveAlert: (id: string) => void;
   resetToDefaults: () => void;
+
+  // Role-Based Notifications
+  addNotification: (notif: Omit<Notification, 'id' | 'created_at' | 'read'>) => Notification;
+  markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: (role?: AppRole) => void;
+  getNotificationsForRole: (role: AppRole) => Notification[];
+
+  // Warehouse Actions (Encargada de Almacén)
+  warehouseStartPreparing: (orderId: string, packerName?: string) => void;
+  warehouseMarkReady: (orderId: string) => void;
+  warehouseHandoverToVendor: (orderId: string, vendorId?: string) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -193,6 +212,15 @@ function mapSupabaseOrder(o: any, items: any[] = []): Order {
     customer_phone: o.customer_phone || '',
     customer_email: o.customer_email || 'cliente@tacticos.bo',
     customer_address: o.customer_address || '',
+    delivery_lat: o.delivery_lat ? parseFloat(o.delivery_lat) : null,
+    delivery_lng: o.delivery_lng ? parseFloat(o.delivery_lng) : null,
+    delivery_map_url: o.delivery_map_url || (o.delivery_lat && o.delivery_lng ? `https://www.google.com/maps?q=${o.delivery_lat},${o.delivery_lng}` : null),
+    delivery_pin_address: o.delivery_pin_address || null,
+    warehouse_status: o.warehouse_status || 'pending',
+    warehouse_packer: o.warehouse_packer || null,
+    warehouse_packed_at: o.warehouse_packed_at || null,
+    cost_subtotal: o.cost_subtotal ? parseFloat(o.cost_subtotal) : undefined,
+    vendor_margin: o.vendor_margin ? parseFloat(o.vendor_margin) : undefined,
     delivery_notes: o.delivery_notes || null,
     customer_rating: o.customer_rating || null,
     customer_review: o.customer_review || null,
@@ -236,6 +264,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<Category[]>(demoCategories);
   const [products, setProducts] = useState<Product[]>(demoProducts);
   const [alerts, setAlerts] = useState<SystemAlert[]>(demoAlerts);
+  const [notifications, setNotifications] = useState<Notification[]>(demoNotifications);
   const [orders, setOrders] = useState<Order[]>(demoOrders);
   const [shippingZones, setShippingZones] = useState<ShippingZone[]>(demoShippingZones);
   const [driverEarnings, setDriverEarnings] = useState<DriverEarning[]>(demoDriverEarnings);
@@ -249,7 +278,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Load from localStorage on mount
   useEffect(() => {
     try {
-      const CURRENT_CATALOG_VERSION = 'v3_tactical_complete_bolivia';
+      const CURRENT_CATALOG_VERSION = 'v6_tactical_8_products_2026';
       const savedVersion = localStorage.getItem('tacticos_catalog_version');
 
       const savedCats = localStorage.getItem('tacticos_store_categories');
@@ -355,6 +384,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       } else {
         setPaymentGatewaySettings(defaultPaymentGatewaySettings);
         localStorage.setItem('tacticos_payment_gateway_settings', JSON.stringify(defaultPaymentGatewaySettings));
+      }
+
+      const savedNotifs = localStorage.getItem('tacticos_store_notifications');
+      if (savedNotifs) {
+        try {
+          setNotifications(JSON.parse(savedNotifs));
+        } catch {
+          setNotifications(demoNotifications);
+        }
+      } else {
+        setNotifications(demoNotifications);
+        localStorage.setItem('tacticos_store_notifications', JSON.stringify(demoNotifications));
       }
 
       // Live Supabase sync
@@ -1036,6 +1077,56 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     toast.success('Zonas de Cochabamba y Nacionales restablecidas a valores oficiales');
   };
 
+  // ROLE-BASED NOTIFICATIONS
+  const addNotification = (notif: Omit<Notification, 'id' | 'created_at' | 'read'>): Notification => {
+    const newNotif: Notification = {
+      ...notif,
+      id: `not-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`,
+      created_at: new Date().toISOString(),
+      read: false,
+    };
+    setNotifications(prev => {
+      const updated = [newNotif, ...prev];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tacticos_store_notifications', JSON.stringify(updated));
+      }
+      return updated;
+    });
+    return newNotif;
+  };
+
+  const markNotificationAsRead = (id: string) => {
+    setNotifications(prev => {
+      const updated = prev.map(n => (n.id === id ? { ...n, read: true } : n));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tacticos_store_notifications', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  const markAllNotificationsAsRead = (targetRole?: AppRole) => {
+    setNotifications(prev => {
+      const updated = prev.map(n => {
+        if (!targetRole || n.target_role === targetRole || n.target_role === 'all') {
+          return { ...n, read: true };
+        }
+        return n;
+      });
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tacticos_store_notifications', JSON.stringify(updated));
+      }
+      return updated;
+    });
+    toast.success('Notificaciones marcadas como leídas');
+  };
+
+  const getNotificationsForRole = (targetRole: AppRole): Notification[] => {
+    return notifications.filter(
+      n => !n.target_role || n.target_role === targetRole || n.target_role === 'all'
+    );
+  };
+
   // ORDER CREATION & LOGISTICS (BOLIVIA - 3 DELIVERY TYPES + 50/50 + REGALO TÁCTICO)
   const createOrder = async (input: CreateOrderInput): Promise<Order> => {
     let shippingCost = 0;
@@ -1093,6 +1184,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // Sin sesión activa — orden anónima, customer_id será null
     }
 
+    // Calculate warehouse cost and vendor margin
+    const cost_subtotal = input.items.reduce((acc, item) => {
+      const prod = products.find(p => p.id === item.product_id);
+      const unitCost = prod?.cost_price !== undefined ? Number(prod.cost_price) : Math.round(item.unit_price * 0.65);
+      return acc + (unitCost * item.quantity);
+    }, 0);
+    const vendor_margin = Math.max(0, total - cost_subtotal);
+
     const newOrder: Order = {
       id: orderId,
       user_id: realUserId || 'guest',
@@ -1108,6 +1207,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       payment_method: input.payment_method,
       payment_mode: input.payment_mode,
       delivery_type: input.delivery_type,
+      cost_subtotal,
+      vendor_margin,
+      warehouse_status: 'pending',
+      delivery_lat: input.delivery_lat || null,
+      delivery_lng: input.delivery_lng || null,
+      delivery_map_url: input.delivery_map_url || (input.delivery_lat && input.delivery_lng ? `https://www.google.com/maps?q=${input.delivery_lat},${input.delivery_lng}` : null),
+      delivery_pin_address: input.delivery_pin_address || null,
       free_gift,
       pickup_time: input.pickup_time || (input.delivery_type === 'pickup' ? storeSettings.pickupSchedule : null),
       pickup_location: input.delivery_type === 'pickup' ? storeSettings.pickupAddress : null,
@@ -1219,6 +1325,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         description: `Se enviaron tus credenciales y tracking por correo SMTP a ${input.customer_email}`,
       });
     }
+
+    // Role-Targeted Notifications
+    addNotification({
+      target_role: 'warehouse',
+      title: `📦 Pedido por Alistar #${orderId.toUpperCase()}`,
+      body: `${input.items.length} producto(s). Costo base: Bs. ${cost_subtotal.toFixed(2)}. Cliente: ${input.customer_name}.`,
+      type: 'warehouse',
+      link: '/almacen',
+      order_id: orderId,
+    });
+
+    addNotification({
+      target_role: 'admin',
+      title: `💰 Nueva Orden #${orderId.toUpperCase()} (Bs. ${total.toFixed(2)})`,
+      body: `Cliente: ${input.customer_name}. Ganancia estimada: Bs. ${vendor_margin.toFixed(2)}.`,
+      type: 'order',
+      link: '/admin/sales',
+      order_id: orderId,
+    });
+
+    addNotification({
+      target_role: 'client',
+      title: `🎯 Pedido Registrado #${orderId.toUpperCase()}`,
+      body: `Tu orden por Bs. ${total.toFixed(2)} fue registrada. La encargada de almacén está alistando los productos.`,
+      type: 'order',
+      link: '/ordenes',
+      order_id: orderId,
+    });
 
     toast.success(`¡Orden ${orderId.toUpperCase()} creada con éxito!`);
     return newOrder;
@@ -1722,6 +1856,158 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
+  // WAREHOUSE ACTIONS (Encargada de Almacén)
+  const warehouseStartPreparing = (orderId: string, packerName: string = 'Sofía Almacén') => {
+    setOrders(prev =>
+      prev.map(o => {
+        if (o.id === orderId) {
+          return {
+            ...o,
+            status: 'preparing',
+            warehouse_status: 'preparing',
+            warehouse_packer: packerName,
+            internal_notes: `${o.internal_notes || ''} [Almacén: Alistamiento iniciado por ${packerName}]`,
+          };
+        }
+        return o;
+      })
+    );
+
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client.from('orders').update({
+        status: 'preparing',
+        updated_at: new Date().toISOString(),
+      }).eq('id', orderId).then(({ error }) => {
+        if (error) console.error('Error updating warehouseStartPreparing in Supabase:', error);
+      });
+    }
+
+    addNotification({
+      target_role: 'client',
+      title: `⏱️ Paquete en Preparación #${orderId.toUpperCase()}`,
+      body: `La encargada de almacén (${packerName}) está preparando tu paquete con precintos de seguridad.`,
+      type: 'warehouse',
+      link: '/ordenes',
+      order_id: orderId,
+    });
+
+    toast.info(`Orden ${orderId.toUpperCase()} en preparación por ${packerName}`);
+  };
+
+  const warehouseMarkReady = (orderId: string) => {
+    let targetOrder: Order | undefined;
+    const packedAt = new Date().toISOString();
+
+    setOrders(prev =>
+      prev.map(o => {
+        if (o.id === orderId) {
+          targetOrder = o;
+          return {
+            ...o,
+            status: 'ready',
+            warehouse_status: 'ready',
+            warehouse_packed_at: packedAt,
+            internal_notes: `${o.internal_notes || ''} [Almacén: Empaque verificado con precinto militar]`,
+          };
+        }
+        return o;
+      })
+    );
+
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client.from('orders').update({
+        status: 'ready',
+        updated_at: new Date().toISOString(),
+      }).eq('id', orderId).then(({ error }) => {
+        if (error) console.error('Error updating warehouseMarkReady in Supabase:', error);
+      });
+    }
+
+    const marginText = targetOrder?.vendor_margin ? `Ganancia vendedor: +Bs. ${targetOrder.vendor_margin.toFixed(2)}` : '';
+
+    addNotification({
+      target_role: 'vendor',
+      title: `🛵 Pedido Alistado en Almacén #${orderId.toUpperCase()}`,
+      body: `Listo para retiro en base Heroínas. Costo base: Bs. ${targetOrder?.cost_subtotal?.toFixed(2) || '0.00'}. ${marginText}.`,
+      type: 'delivery',
+      link: '/vendor/orders',
+      order_id: orderId,
+    });
+
+    addNotification({
+      target_role: 'client',
+      title: `📦 Pedido Alistado #${orderId.toUpperCase()}`,
+      body: `Tu paquete está 100% empacado y verificado en nuestro almacén central. Listo para despacho.`,
+      type: 'warehouse',
+      link: '/ordenes',
+      order_id: orderId,
+    });
+
+    addNotification({
+      target_role: 'admin',
+      title: `✅ Almacén terminó orden #${orderId.toUpperCase()}`,
+      body: `Paquete sellado con precinto de seguridad. Esperando retiro de vendedor/chofer.`,
+      type: 'warehouse',
+      link: '/almacen',
+      order_id: orderId,
+    });
+
+    toast.success(`Orden ${orderId.toUpperCase()} alistada en almacén y lista para retiro.`);
+  };
+
+  const warehouseHandoverToVendor = (orderId: string, vendorId: string = 'vendor-01') => {
+    setOrders(prev =>
+      prev.map(o => {
+        if (o.id === orderId) {
+          return {
+            ...o,
+            driver_id: vendorId,
+            status: 'picked_up',
+            warehouse_status: 'picked_up',
+            internal_notes: `${o.internal_notes || ''} [Traspaso a vendedor Carlos realizado a precio base]`,
+          };
+        }
+        return o;
+      })
+    );
+
+    // Sync to Supabase
+    const client = supabase;
+    if (client) {
+      client.from('orders').update({
+        status: 'picked_up',
+        driver_id: vendorId,
+        updated_at: new Date().toISOString(),
+      }).eq('id', orderId).then(({ error }) => {
+        if (error) console.error('Error updating warehouseHandoverToVendor in Supabase:', error);
+      });
+    }
+
+    addNotification({
+      target_role: 'client',
+      title: `🚚 Paquete Retirado de Almacén #${orderId.toUpperCase()}`,
+      body: `El vendedor oficial Carlos ha recogido tu paquete de almacén para iniciar la entrega.`,
+      type: 'delivery',
+      link: '/ordenes',
+      order_id: orderId,
+    });
+
+    addNotification({
+      target_role: 'warehouse',
+      title: `🤝 Traspaso Completado #${orderId.toUpperCase()}`,
+      body: `Paquete entregado al vendedor Carlos a precio base.`,
+      type: 'warehouse',
+      link: '/almacen',
+      order_id: orderId,
+    });
+
+    toast.success(`Orden ${orderId.toUpperCase()} traspasada al vendedor Carlos.`);
+  };
+
   const toggleDriverAvailability = () => {
     setIsDriverAvailable(prev => {
       const next = !prev;
@@ -2097,6 +2383,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('tacticos_payment_gateway_settings');
     localStorage.removeItem('tacticos_cash_settlements');
     localStorage.removeItem('tacticos_fixed_amount_qrs');
+    localStorage.removeItem('tacticos_store_notifications');
+    setNotifications(demoNotifications);
     toast.info('Datos restaurados a valores de fábrica para Bolivia');
   };
 
@@ -2106,6 +2394,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         categories,
         products,
         alerts,
+        notifications,
         orders,
         shippingZones,
         driverEarnings,
@@ -2148,6 +2437,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         getQRForAmount,
         resolveAlert,
         resetToDefaults,
+        addNotification,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
+        getNotificationsForRole,
+        warehouseStartPreparing,
+        warehouseMarkReady,
+        warehouseHandoverToVendor,
       }}
     >
       {children}
