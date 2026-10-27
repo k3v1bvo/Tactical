@@ -27,6 +27,18 @@ export function AuthModal() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isParamDemo = urlParams.get('demo') === '1' || urlParams.get('demo') === 'true';
+      const storedDemo = localStorage.getItem('tacticos_demo_mode') === 'true';
+      if (isParamDemo || storedDemo) {
+        setDemoMode(true);
+      }
+    }
+  }, [isAuthModalOpen]);
 
   // Close on Escape key and prevent background scroll
   useEffect(() => {
@@ -316,36 +328,52 @@ export function AuthModal() {
             </>
           )}
 
-          {/* Quick Demo Switcher */}
-          <div className="pt-4 border-t border-[#22222A]">
-            <div className="text-[10px] font-mono text-[#7A7A85] uppercase text-center mb-2.5 flex items-center justify-center gap-1.5">
-              <Sparkles size={11} className="text-[#C8A961]" />
-              <span>CAMBIO DE ROL INMEDIATO (MODO SIMULADOR)</span>
+          {/* Quick Demo Switcher (Solo en Modo Demo) */}
+          {demoMode ? (
+            <div className="pt-4 border-t border-[#22222A]">
+              <div className="text-[10px] font-mono text-[#7A7A85] uppercase text-center mb-2.5 flex items-center justify-center gap-1.5">
+                <Sparkles size={11} className="text-[#C8A961]" />
+                <span>CAMBIO DE ROL INMEDIATO (MODO SIMULADOR)</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDemoSwitch('admin')}
+                  className="min-h-[42px] px-2 py-2 rounded-xl bg-[#14141C] border border-[#E5484D]/30 hover:border-[#E5484D] text-[#E5484D] text-[10px] font-mono font-bold transition-all hover:bg-[#E5484D]/10"
+                >
+                  ADMIN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDemoSwitch('vendor')}
+                  className="min-h-[42px] px-2 py-2 rounded-xl bg-[#14141C] border border-[#3b82f6]/30 hover:border-[#3b82f6] text-[#3b82f6] text-[10px] font-mono font-bold transition-all hover:bg-[#3b82f6]/10"
+                >
+                  CHOFER MOTO
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDemoSwitch('client')}
+                  className="min-h-[42px] px-2 py-2 rounded-xl bg-[#14141C] border border-[#30A46C]/30 hover:border-[#30A46C] text-[#30A46C] text-[10px] font-mono font-bold transition-all hover:bg-[#30A46C]/10"
+                >
+                  CLIENTE
+                </button>
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+          ) : (
+            <div className="pt-3 border-t border-[#22222A]/60 text-center">
               <button
                 type="button"
-                onClick={() => handleDemoSwitch('admin')}
-                className="min-h-[42px] px-2 py-2 rounded-xl bg-[#14141C] border border-[#E5484D]/30 hover:border-[#E5484D] text-[#E5484D] text-[10px] font-mono font-bold transition-all hover:bg-[#E5484D]/10"
+                onClick={() => {
+                  setDemoMode(true);
+                  localStorage.setItem('tacticos_demo_mode', 'true');
+                }}
+                className="text-[10px] font-mono text-[#5E5E68] hover:text-[#C8A961] transition-colors"
+                title="Habilitar simulador de perfiles para demostración"
               >
-                ADMIN
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDemoSwitch('vendor')}
-                className="min-h-[42px] px-2 py-2 rounded-xl bg-[#14141C] border border-[#3b82f6]/30 hover:border-[#3b82f6] text-[#3b82f6] text-[10px] font-mono font-bold transition-all hover:bg-[#3b82f6]/10"
-              >
-                CHOFER MOTO
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDemoSwitch('client')}
-                className="min-h-[42px] px-2 py-2 rounded-xl bg-[#14141C] border border-[#30A46C]/30 hover:border-[#30A46C] text-[#30A46C] text-[10px] font-mono font-bold transition-all hover:bg-[#30A46C]/10"
-              >
-                CLIENTE
+                🔒 Terminal de Operaciones (Personal)
               </button>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

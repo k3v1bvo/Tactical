@@ -25,6 +25,7 @@ import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useStore } from '@/context/StoreContext';
 import { MobileBottomBar } from './MobileBottomBar';
+import { toast } from 'sonner';
 import type { AppRole } from '@/lib/types';
 
 export function Navbar() {
@@ -41,6 +42,50 @@ export function Navbar() {
   const [roleDropdown, setRoleDropdown] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
+  const [clickCount, setClickCount] = useState(0);
+
+  // Initialize demo mode and listen for shortcut Ctrl + Shift + D
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const isParamDemo = urlParams.get('demo') === '1' || urlParams.get('demo') === 'true';
+      const storedDemo = localStorage.getItem('tacticos_demo_mode') === 'true';
+      if (isParamDemo || storedDemo) {
+        setDemoMode(true);
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        setDemoMode(prev => {
+          const next = !prev;
+          localStorage.setItem('tacticos_demo_mode', String(next));
+          toast.info(next ? '🛡️ Modo Simulador Demo ACTIVADO' : '🔒 Modo Producción Limpio ACTIVADO');
+          return next;
+        });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleMilSpecClick = () => {
+    setClickCount(prev => {
+      const next = prev + 1;
+      if (next >= 3) {
+        setDemoMode(d => {
+          const toggled = !d;
+          localStorage.setItem('tacticos_demo_mode', String(toggled));
+          toast.info(toggled ? '🛡️ Modo Simulador Demo ACTIVADO' : '🔒 Modo Producción Limpio ACTIVADO');
+          return toggled;
+        });
+        return 0;
+      }
+      return next;
+    });
+  };
 
   // Filter notifications specifically by current profile role
   const roleNotifications = notifications.filter(
@@ -124,7 +169,11 @@ export function Navbar() {
                   <span className="text-sm sm:text-lg font-extrabold tracking-wider text-[#F5F5F7] font-mono truncate">
                     TÁCTICOS<span className="text-[#C8A961]">.PRO</span>
                   </span>
-                  <span className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#C8A961]/12 text-[#C8A961] border border-[#C8A961]/25">
+                  <span
+                    onClick={handleMilSpecClick}
+                    title="Control de Sistema (Triple clic para demo)"
+                    className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#C8A961]/12 text-[#C8A961] border border-[#C8A961]/25 cursor-pointer select-none"
+                  >
                     MIL-SPEC
                   </span>
                 </div>
@@ -207,191 +256,196 @@ export function Navbar() {
                 <span className="hidden sm:inline">{isLoggedIn ? 'MI CUENTA' : 'INGRESAR'}</span>
               </button>
 
-              {/* Role Switcher */}
-              <div className="relative">
-                <button
-                  onClick={() => {
-                    setRoleDropdown(!roleDropdown);
-                    setNotificationsOpen(false);
-                  }}
-                  className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-lg border border-[#22222A] hover:border-[#35353E] bg-[#0D0D10] transition-all text-xs group min-h-[38px]"
-                  title="Cambiar Perfil Operativo (Admin / Almacén / Vendedor / Cliente)"
-                >
-                  <div
-                    className="w-2.5 h-2.5 rounded-full transition-shadow duration-300 group-hover:shadow-[0_0_6px_currentColor]"
-                    style={{ background: currentRole.color }}
-                  />
-                  <span className="text-[#A1A1AA] hidden lg:inline max-w-[100px] truncate">{userName}</span>
-                  <span
-                    className="text-[9px] sm:text-[10px] font-mono font-bold px-1.5 py-0.5 rounded transition-all"
-                    style={{ background: `${currentRole.color}18`, color: currentRole.color }}
-                  >
-                    {currentRole.label.toUpperCase()}
-                  </span>
-                  <ChevronDown
-                    size={12}
-                    className={`text-[#5E5E68] transition-transform duration-200 ${roleDropdown ? 'rotate-180' : ''}`}
-                  />
-                </button>
-
-                {roleDropdown && (
-                  <div className="absolute right-0 top-full mt-2 w-64 glass-deep rounded-xl p-2 shadow-2xl z-50 animate-slide-down border border-[#22222A]">
-                    <div className="px-3 py-1.5 border-b border-[#22222A] mb-1">
-                      <p className="text-[10px] text-[#5E5E68] font-mono font-semibold uppercase tracking-wider">
-                        Cambiar Perfil de Operación
-                      </p>
-                    </div>
-                    {roles.map(r => (
-                      <button
-                        key={r.value}
-                        onClick={() => {
-                          setRole(r.value);
-                          setRoleDropdown(false);
-                        }}
-                        className={`w-full flex items-start gap-2.5 px-3 py-2.5 rounded-lg text-left text-xs transition-all ${
-                          role === r.value ? 'bg-[#1C1C22] text-white font-semibold' : 'text-[#A1A1AA] hover:bg-white/[0.04]'
-                        }`}
+              {/* Role Switcher & Notifications (Solo visibles en Modo Demo o con credenciales de Operador) */}
+              {(demoMode || role !== 'client') && (
+                <>
+                  {/* Role Switcher */}
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setRoleDropdown(!roleDropdown);
+                        setNotificationsOpen(false);
+                      }}
+                      className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-lg border border-[#22222A] hover:border-[#35353E] bg-[#0D0D10] transition-all text-xs group min-h-[38px]"
+                      title="Cambiar Perfil Operativo (Admin / Almacén / Vendedor / Cliente)"
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full transition-shadow duration-300 group-hover:shadow-[0_0_6px_currentColor]"
+                        style={{ background: currentRole.color }}
+                      />
+                      <span className="text-[#A1A1AA] hidden lg:inline max-w-[100px] truncate">{userName}</span>
+                      <span
+                        className="text-[9px] sm:text-[10px] font-mono font-bold px-1.5 py-0.5 rounded transition-all"
+                        style={{ background: `${currentRole.color}18`, color: currentRole.color }}
                       >
-                        <div className="w-2.5 h-2.5 rounded-full mt-1 shrink-0" style={{ background: r.color }} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-white">{r.label}</span>
-                            {role === r.value && (
-                              <span className="text-[9px] text-[#C8A961] font-mono font-bold">● ACTIVO</span>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-[#71717A] mt-0.5 line-clamp-1">{r.desc}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Role-Based Notifications Bell */}
-              <div className="relative">
-                <button
-                  onClick={() => {
-                    setNotificationsOpen(!notificationsOpen);
-                    setRoleDropdown(false);
-                  }}
-                  className="relative p-2 rounded-lg hover:bg-white/[0.04] text-[#A1A1AA] hover:text-white transition-all duration-200 min-h-[38px] min-w-[38px] flex items-center justify-center"
-                  title={`Notificaciones para rol ${currentRole.label}`}
-                >
-                  <Bell size={18} />
-                  {unreadCount > 0 && (
-                    <>
-                      <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[#E5484D] rounded-full animate-ping" />
-                      <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-[#E5484D] text-white rounded-full text-[9px] font-black font-mono flex items-center justify-center shadow-[0_0_8px_rgba(229,72,77,0.7)]">
-                        {unreadCount}
+                        {currentRole.label.toUpperCase()}
                       </span>
-                    </>
-                  )}
-                </button>
+                      <ChevronDown
+                        size={12}
+                        className={`text-[#5E5E68] transition-transform duration-200 ${roleDropdown ? 'rotate-180' : ''}`}
+                      />
+                    </button>
 
-                {notificationsOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 glass-deep rounded-2xl p-3.5 shadow-2xl z-50 animate-slide-down border border-[#22222A]">
-                    {/* Header */}
-                    <div className="flex items-center justify-between pb-2.5 border-b border-[#22222A] mb-2.5">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ background: currentRole.color }} />
-                        <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-                          Buzón · {currentRole.label}
-                        </span>
-                        {unreadCount > 0 && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#E5484D]/20 text-[#E5484D] border border-[#E5484D]/30">
-                            {unreadCount} nuevas
-                          </span>
-                        )}
-                      </div>
-
-                      {unreadCount > 0 && (
-                        <button
-                          onClick={() => markAllNotificationsAsRead(role)}
-                          className="text-[10px] font-mono text-[#C8A961] hover:underline flex items-center gap-1 transition-all"
-                        >
-                          <CheckCheck size={12} /> Marcar leídas
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Notification list */}
-                    {roleNotifications.length === 0 ? (
-                      <div className="py-6 text-center">
-                        <Bell size={24} className="mx-auto text-[#3A3A44] mb-2 opacity-50" />
-                        <p className="text-xs text-[#71717A] font-mono">
-                          Sin notificaciones para {currentRole.label.toLowerCase()}.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2 max-h-80 overflow-y-auto pr-1 scrollbar-thin">
-                        {roleNotifications.map(item => (
-                          <div
-                            key={item.id}
-                            className={`p-3 rounded-xl border transition-all text-xs ${
-                              !item.read
-                                ? 'bg-[#15151A] border-[#C8A961]/30 shadow-sm'
-                                : 'bg-[#0D0D10] border-[#22222A] opacity-75'
+                    {roleDropdown && (
+                      <div className="absolute right-0 top-full mt-2 w-64 glass-deep rounded-xl p-2 shadow-2xl z-50 animate-slide-down border border-[#22222A]">
+                        <div className="px-3 py-1.5 border-b border-[#22222A] mb-1">
+                          <p className="text-[10px] text-[#5E5E68] font-mono font-semibold uppercase tracking-wider">
+                            Cambiar Perfil de Operación
+                          </p>
+                        </div>
+                        {roles.map(r => (
+                          <button
+                            key={r.value}
+                            onClick={() => {
+                              setRole(r.value);
+                              setRoleDropdown(false);
+                            }}
+                            className={`w-full flex items-start gap-2.5 px-3 py-2.5 rounded-lg text-left text-xs transition-all ${
+                              role === r.value ? 'bg-[#1C1C22] text-white font-semibold' : 'text-[#A1A1AA] hover:bg-white/[0.04]'
                             }`}
                           >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-1.5">
-                                {!item.read && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-[#C8A961] shrink-0" />
-                                )}
-                                <span className="font-bold text-white text-[12px]">
-                                  {item.title}
-                                </span>
-                              </div>
-                              <span className="text-[9px] font-mono text-[#5E5E68] shrink-0 flex items-center gap-0.5">
-                                <Clock size={10} /> {formatTimeAgo(item.created_at)}
-                              </span>
-                            </div>
-
-                            <p className="text-[#A1A1AA] text-[11px] mt-1 leading-relaxed">
-                              {item.message || item.body}
-                            </p>
-
-                            {/* Direct Action Link */}
-                            <div className="mt-2 pt-2 border-t border-white/[0.04] flex items-center justify-between">
-                              {item.order_id && (
-                                <span className="text-[9px] font-mono text-[#71717A]">
-                                  Orden: <span className="text-[#C8A961]">{item.order_id}</span>
-                                </span>
-                              )}
-
-                              <div className="ml-auto flex items-center gap-2">
-                                {item.link && (
-                                  <Link
-                                    href={item.link}
-                                    onClick={() => {
-                                      markNotificationAsRead(item.id);
-                                      setNotificationsOpen(false);
-                                    }}
-                                    className="text-[10px] font-mono font-bold text-[#C8A961] hover:underline flex items-center gap-1"
-                                  >
-                                    Ver detalle <ArrowRight size={11} />
-                                  </Link>
-                                )}
-
-                                {!item.read && (
-                                  <button
-                                    onClick={() => markNotificationAsRead(item.id)}
-                                    className="text-[10px] text-[#71717A] hover:text-white"
-                                    title="Marcar como leída"
-                                  >
-                                    ✓
-                                  </button>
+                            <div className="w-2.5 h-2.5 rounded-full mt-1 shrink-0" style={{ background: r.color }} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-white">{r.label}</span>
+                                {role === r.value && (
+                                  <span className="text-[9px] text-[#C8A961] font-mono font-bold">● ACTIVO</span>
                                 )}
                               </div>
+                              <p className="text-[10px] text-[#71717A] mt-0.5 line-clamp-1">{r.desc}</p>
                             </div>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
+
+                  {/* Role-Based Notifications Bell */}
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setNotificationsOpen(!notificationsOpen);
+                        setRoleDropdown(false);
+                      }}
+                      className="relative p-2 rounded-lg hover:bg-white/[0.04] text-[#A1A1AA] hover:text-white transition-all duration-200 min-h-[38px] min-w-[38px] flex items-center justify-center"
+                      title={`Notificaciones para rol ${currentRole.label}`}
+                    >
+                      <Bell size={18} />
+                      {unreadCount > 0 && (
+                        <>
+                          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-[#E5484D] rounded-full animate-ping" />
+                          <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-[#E5484D] text-white rounded-full text-[9px] font-black font-mono flex items-center justify-center shadow-[0_0_8px_rgba(229,72,77,0.7)]">
+                            {unreadCount}
+                          </span>
+                        </>
+                      )}
+                    </button>
+
+                    {notificationsOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 glass-deep rounded-2xl p-3.5 shadow-2xl z-50 animate-slide-down border border-[#22222A]">
+                        {/* Header */}
+                        <div className="flex items-center justify-between pb-2.5 border-b border-[#22222A] mb-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{ background: currentRole.color }} />
+                            <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                              Buzón · {currentRole.label}
+                            </span>
+                            {unreadCount > 0 && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-[#E5484D]/20 text-[#E5484D] border border-[#E5484D]/30">
+                                {unreadCount} nuevas
+                              </span>
+                            )}
+                          </div>
+
+                          {unreadCount > 0 && (
+                            <button
+                              onClick={() => markAllNotificationsAsRead(role)}
+                              className="text-[10px] font-mono text-[#C8A961] hover:underline flex items-center gap-1 transition-all"
+                            >
+                              <CheckCheck size={12} /> Marcar leídas
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Notification list */}
+                        {roleNotifications.length === 0 ? (
+                          <div className="py-6 text-center">
+                            <Bell size={24} className="mx-auto text-[#3A3A44] mb-2 opacity-50" />
+                            <p className="text-xs text-[#71717A] font-mono">
+                              Sin notificaciones para {currentRole.label.toLowerCase()}.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-80 overflow-y-auto pr-1 scrollbar-thin">
+                            {roleNotifications.map(item => (
+                              <div
+                                key={item.id}
+                                className={`p-3 rounded-xl border transition-all text-xs ${
+                                  !item.read
+                                    ? 'bg-[#15151A] border-[#C8A961]/30 shadow-sm'
+                                    : 'bg-[#0D0D10] border-[#22222A] opacity-75'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-1.5">
+                                    {!item.read && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[#C8A961] shrink-0" />
+                                    )}
+                                    <span className="font-bold text-white text-[12px]">
+                                      {item.title}
+                                    </span>
+                                  </div>
+                                  <span className="text-[9px] font-mono text-[#5E5E68] shrink-0 flex items-center gap-0.5">
+                                    <Clock size={10} /> {formatTimeAgo(item.created_at)}
+                                  </span>
+                                </div>
+
+                                <p className="text-[#A1A1AA] text-[11px] mt-1 leading-relaxed">
+                                  {item.message || item.body}
+                                </p>
+
+                                {/* Direct Action Link */}
+                                <div className="mt-2 pt-2 border-t border-white/[0.04] flex items-center justify-between">
+                                  {item.order_id && (
+                                    <span className="text-[9px] font-mono text-[#71717A]">
+                                      Orden: <span className="text-[#C8A961]">{item.order_id}</span>
+                                    </span>
+                                  )}
+
+                                  <div className="ml-auto flex items-center gap-2">
+                                    {item.link && (
+                                      <Link
+                                        href={item.link}
+                                        onClick={() => {
+                                          markNotificationAsRead(item.id);
+                                          setNotificationsOpen(false);
+                                        }}
+                                        className="text-[10px] font-mono font-bold text-[#C8A961] hover:underline flex items-center gap-1"
+                                      >
+                                        Ver detalle <ArrowRight size={11} />
+                                      </Link>
+                                    )}
+
+                                    {!item.read && (
+                                      <button
+                                        onClick={() => markNotificationAsRead(item.id)}
+                                        className="text-[10px] text-[#71717A] hover:text-white"
+                                        title="Marcar como leída"
+                                      >
+                                        ✓
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Cart Icon */}
               <Link
